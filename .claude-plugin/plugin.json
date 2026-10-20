@@ -1,0 +1,8 @@
+{
+  "name": "sceneboard",
+  "version": "0.1.0",
+  "description": "A scene-by-scene review board for AI films on claude.ai Artifacts: the director comments on a scene, an agent fixes it and publishes the new clip back to the card.",
+  "author": { "name": "Treechat" },
+  "license": "MIT",
+  "keywords": ["film", "storyboard", "review", "artifacts", "slopcore", "remotion"]
+}

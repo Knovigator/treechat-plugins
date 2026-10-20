@@ -1,0 +1,516 @@
+<title>Scene Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a timeline strip on top, then a horizontal rail of scene cards (film at the head, assets / text / notes below). */
+:root{
+  --bg:#e9e6e1;--card:#f8f7f4;--fg:#1d1b1a;--muted:#6b6560;--line:#d3cec7;
+  --farm:#c4312a;--uv:#6d28ff;--coin:#e8891c;--ok:#2f8a4f;--warn:#b7791f;
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141316;--card:#1d1c21;--fg:#ece9f2;--muted:#9a95a6;--line:#2f2d36;--farm:#ff5a4f;--uv:#9b72ff;--coin:#ffa53d;--ok:#4cc27a;--warn:#e0a640;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141316;--card:#1d1c21;--fg:#ece9f2;--muted:#9a95a6;--line:#2f2d36;--farm:#ff5a4f;--uv:#9b72ff;--coin:#ffa53d;--ok:#4cc27a;--warn:#e0a640;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--body);margin:0}
+.wrap{padding-inline:clamp(16px,3vw,32px);padding-block:20px 32px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 16px;margin-bottom:8px}
+h1{font:800 18px/1.1 var(--display);letter-spacing:.02em;margin:0;text-transform:uppercase}
+h1 small{display:inline;font:500 11px/1.4 var(--mono);letter-spacing:.06em;color:var(--muted);text-transform:uppercase;margin-left:10px}
+.counts{display:flex;flex-wrap:wrap;gap:6px;font:500 12px var(--mono)}
+.full{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:3px 8px 3px 3px;border:1px solid var(--line);border-radius:6px;background:var(--card);max-width:100%}
+.full:focus-visible{outline:2px solid var(--uv);outline-offset:2px}
+.full .thumb{position:relative;width:88px;max-width:30vw;aspect-ratio:16/9;border-radius:4px;overflow:hidden;background:#000;flex:none}
+.full .thumb video{width:100%;height:100%;object-fit:cover;display:block}
+.full .play{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(transparent 55%,rgba(0,0,0,.55))}
+.full .play span{width:22px;height:22px;font-size:10px!important;border-radius:50%;background:rgba(0,0,0,.6);display:grid;place-items:center;color:#fff;font-size:15px;padding-left:3px}
+.full .meta2{display:grid;gap:2px;font:500 11px/1.35 var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;min-width:0}
+.full .meta2 b{font:800 13px/1 var(--display);color:var(--fg);letter-spacing:.02em}
+.full .meta2 i{display:none}
+.refresh{all:unset;cursor:pointer;align-self:center;font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:var(--card);white-space:nowrap}
+.refresh:hover{color:var(--fg)}
+.refresh:focus-visible{outline:2px solid var(--uv);outline-offset:2px}
+.refresh[aria-disabled=true]{cursor:default;color:var(--uv)}
+dialog.cinema{max-width:none;width:100vw;height:100dvh;margin:0;background:#000}
+dialog.cinema::backdrop{background:#000}
+dialog.cinema .stage{position:relative;width:100%;height:100%;display:flex;flex-direction:column}
+dialog.cinema video{flex:1;width:100%;min-height:0;max-height:none;object-fit:contain;background:#000;border-radius:0}
+dialog.cinema .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 16px;font:500 12px var(--mono);color:#bbb;letter-spacing:.06em;text-transform:uppercase}
+dialog.cinema .bar button{font:600 12px var(--mono);background:#fff;color:#000;border:0;border-radius:4px;padding:5px 12px;cursor:pointer}
+dialog.cinema .bar{transition:opacity .3s}
+dialog.cinema.idle .bar{opacity:0}
+.idle,.idle video,video.idle{cursor:none}
+.timeline{display:flex;height:24px;border-radius:4px;overflow:hidden;border:1px solid var(--line);margin-bottom:10px;background:var(--card)}
+.timeline button{all:unset;cursor:pointer;position:relative;border-right:1px solid var(--bg);display:flex;align-items:flex-end;padding:3px 4px;font:600 11px var(--mono);color:var(--fg);min-width:0;overflow:hidden}
+.timeline button:last-child{border-right:0}
+.timeline button:focus-visible{outline:2px solid var(--uv);outline-offset:-2px}
+.timeline button .bar{position:absolute;left:0;right:0;top:0;height:6px}
+.rail{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:14px;align-items:flex-start}
+.card{flex:0 0 min(600px,calc(100vw - 56px));scroll-snap-align:start;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-width:0;height:max(480px,calc(100dvh - var(--railtop,40px) - 18px))}
+.card .upper{flex:1 1 auto;min-height:120px;overflow-x:hidden;overflow-y:auto;overscroll-behavior-x:auto;overscroll-behavior-y:contain;touch-action:auto}
+.dock{flex:0 0 auto;position:relative;border-top:1px solid var(--line);padding:10px 16px 12px;background:var(--card)}
+.newpill{position:absolute;left:50%;bottom:calc(100% + 10px);z-index:1;transform:translateX(-50%);font:600 12px var(--mono);background:var(--uv);color:#fff;border:0;border-radius:999px;padding:5px 12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.newpill[hidden]{display:none}
+.waiting{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;padding:7px 12px;background:var(--coin);color:#1d1b1a;font:600 12px var(--mono);letter-spacing:.04em;flex:0 0 auto}
+.waiting[hidden]{display:none}
+.waiting b{text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+.waiting span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;font-weight:500}
+.waiting:focus-visible{outline:2px solid var(--fg);outline-offset:-2px}
+.working{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;padding:7px 12px;background:var(--uv);color:#fff;font:600 12px var(--mono);letter-spacing:.04em;flex:0 0 auto}
+.working[hidden]{display:none}
+.working b{text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.working span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;font-weight:500}
+.working .spin,.timeline .wdot{width:8px;height:8px;border-radius:50%;background:#fff;animation:pulse 1.2s ease-in-out infinite}
+.timeline .wdot{position:absolute;left:4px;top:9px;background:var(--uv);box-shadow:0 0 0 2px var(--card)}
+@keyframes pulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.working .spin,.timeline .wdot{animation:none}}
+.inbox .item.run{border-left-color:var(--uv)}
+.inbox h3{font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 0}
+.timeline button .k4{position:absolute;right:3px;bottom:3px;font:700 8px/10px var(--mono);letter-spacing:.02em;padding:0 2px;border-radius:2px;background:var(--uv);color:#fff}
+.timeline button .dot{position:absolute;right:4px;top:9px;width:8px;height:8px;border-radius:50%;background:var(--coin);box-shadow:0 0 0 2px var(--card)}
+.card.inbox .upper{padding:16px}
+.inbox h2{margin-bottom:4px}
+.inbox .item{all:unset;box-sizing:border-box;cursor:pointer;display:grid;gap:4px;width:100%;padding:10px 12px;margin-top:10px;border:1px solid var(--line);border-left:3px solid var(--coin);border-radius:4px;background:var(--bg)}
+.inbox .item:focus-visible{outline:2px solid var(--uv);outline-offset:2px}
+.inbox .item .who{font:600 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.inbox .item .q{font-size:13px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.newpill:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.card video.main{display:block;width:100%;aspect-ratio:16/9;background:#000}
+.clipwrap{position:relative;flex:0 0 auto;border-bottom:1px solid var(--line)}
+.clipbadge{position:absolute;left:8px;top:8px;display:flex;gap:6px;align-items:center;font:600 11px var(--mono);color:#fff;background:rgba(0,0,0,.7);padding:3px 8px;border-radius:3px;pointer-events:none;max-width:calc(100% - 16px);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.clipbadge b{color:#c9b4ff}
+.clipline{font:500 12px var(--mono);color:var(--muted)}
+.clipline b{color:var(--fg)}
+.picks{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.picks .label{margin:0 4px 0 0}
+.picks button{font:500 12px var(--mono);color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 10px;cursor:pointer}
+.picks button[aria-pressed=true]{border-color:var(--fg)}
+.body{padding:14px 16px 16px;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}
+.body>*{min-width:0}
+.note{overflow-wrap:anywhere}
+.meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font:500 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.meta b{color:var(--fg);font-weight:500}
+h2{font:800 26px/1 var(--display);text-transform:uppercase;margin:2px 0 0;letter-spacing:.01em}
+.pill{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;border-radius:999px;padding:3px 10px;border:1px solid currentColor;background:transparent;color:var(--muted);appearance:none;cursor:pointer}
+.pill:focus-visible{outline:2px solid var(--uv);outline-offset:2px}
+.st-placeholder{color:var(--muted)} .st-animatic{color:var(--warn)} .st-footage{color:var(--coin)} .st-review{color:var(--uv)} .st-final{color:var(--ok)}
+.bar.st-placeholder{background:var(--muted)} .bar.st-animatic{background:var(--warn)} .bar.st-footage{background:var(--coin)} .bar.st-review{background:var(--uv)} .bar.st-final{background:var(--ok)}
+.label{font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.lyrics{font-style:italic;margin:0;padding-left:10px;border-left:2px solid var(--farm)}
+.lyrics p{margin:0}
+.text p{margin:0;max-width:65ch}
+.assets{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.assets button{all:unset;cursor:pointer;position:relative;aspect-ratio:16/10;border-radius:3px;overflow:hidden;background:var(--bg);display:block}
+.assets button:focus-visible{outline:2px solid var(--uv);outline-offset:1px}
+.assets img,.assets video{width:100%;height:100%;object-fit:cover;display:block}
+.assets .tag{position:absolute;left:4px;bottom:4px;font:600 9px var(--mono);background:rgba(0,0,0,.65);color:#fff;padding:1px 5px;border-radius:2px}
+.notes{display:flex;flex-direction:column;gap:8px}
+.note .who{display:flex;align-items:center;gap:8px}
+.replybtn{margin-left:auto;font:600 11px var(--mono);color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:999px;padding:1px 8px;cursor:pointer}
+.replybtn:hover,.replybtn:focus-visible{color:var(--fg);border-color:var(--uv)}
+.notemedia{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin:6px 0 2px}.notemedia figure{margin:0}.notemedia img,.notemedia video{display:block;width:100%;height:auto;border-radius:3px;background:#000}.notemedia .nm-img{all:unset;display:block;cursor:zoom-in;width:100%}.notemedia .nm-open{all:unset;cursor:pointer;font:500 11px var(--mono);color:var(--muted);margin-top:2px}.notemedia .cap{font-size:11px;color:var(--muted);margin-top:2px}
+.quote{all:unset;box-sizing:border-box;cursor:pointer;display:block;margin:2px 0 6px;padding:4px 8px;border-left:2px solid var(--uv);font-size:12px;color:var(--muted);background:color-mix(in srgb,var(--uv) 6%,transparent);border-radius:2px}
+.replybar{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:6px;padding:4px 8px;border-left:2px solid var(--uv);background:color-mix(in srgb,var(--uv) 8%,transparent);border-radius:2px}
+.replybar[hidden]{display:none}
+.replybar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.replybar button{all:unset;cursor:pointer;font-size:14px;color:var(--fg);padding:0 4px}
+.note.flash{outline:2px solid var(--uv);outline-offset:2px}
+.tabs{display:flex;gap:4px;margin-top:8px}
+.tabs button{flex:1;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:4px;padding:5px 8px;cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--fg);border-color:var(--fg)}
+.tabs button:focus-visible{outline:2px solid var(--uv);outline-offset:1px}
+.card .assetsview{flex:1 1 auto;min-height:120px;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;padding:12px 16px}
+.card .assetsview[hidden],.card .upper[hidden],.compose[hidden]{display:none}
+.assetsview .assets{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.assetsview .assets button{aspect-ratio:16/9}
+.assets button[hidden]{display:none}
+.assets .doc{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:10px 10px 22px;font:500 11px/1.35 var(--mono);color:var(--fg);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.assets .doc b{font:700 18px var(--mono);color:var(--uv)}
+.assets .doc span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.afilter{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 8px}
+.afilter button{font:600 10px var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:999px;padding:3px 9px;cursor:pointer}
+.afilter button[aria-pressed=true]{color:var(--fg);border-color:var(--fg)}
+.afilter button:focus-visible{outline:2px solid var(--uv);outline-offset:1px}
+dialog pre{margin:0;max-height:80vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font:12px/1.5 var(--mono);background:#111;color:#eee;padding:14px;border-radius:4px}
+dialog audio{width:100%}
+.assets .when{position:absolute;right:4px;top:4px;font:600 9px var(--mono);background:rgba(0,0,0,.65);color:#fff;padding:1px 5px;border-radius:2px}
+.note{max-width:88%}
+.note.me{align-self:flex-end;background:color-mix(in srgb,var(--uv) 14%,var(--card));border:1px solid color-mix(in srgb,var(--uv) 30%,var(--line))}
+.note.claude{align-self:flex-start}
+.typing{align-self:flex-start;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:6px 10px;border-radius:12px;background:var(--bg);border-left:2px solid var(--uv)}
+.typing .dots{display:inline-flex;gap:3px}
+.typing .dots i{width:5px;height:5px;border-radius:50%;background:var(--uv);opacity:.35;animation:blink 1.2s infinite}
+.typing .dots i:nth-child(2){animation-delay:.2s}.typing .dots i:nth-child(3){animation-delay:.4s}
+.typing.run .dots i{border-radius:1px}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.typing .dots i{animation:none;opacity:.7}}
+.note{font-size:13px;padding:8px 10px;border-radius:4px;background:var(--bg)}
+.note .who{font:500 11px var(--mono);color:var(--muted);margin-bottom:2px}
+.note.claude{border-left:2px solid var(--uv)}
+.compose{display:flex;gap:6px}
+.attachrow{display:flex;gap:6px;flex-wrap:wrap;padding:6px 0 0}
+.att{position:relative;margin:0;width:64px;height:64px;border-radius:4px;overflow:hidden;border:1px solid var(--line);background:var(--bg)}
+.att img{width:100%;height:100%;object-fit:cover;display:block}
+.att.busy img{opacity:.45}.att.err{border-color:var(--farm)}
+.attst{position:absolute;left:0;right:0;bottom:0;font:10px/1.3 var(--body);background:rgba(0,0,0,.6);color:#fff;text-align:center;padding:1px 2px}
+.attx{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:12px;line-height:18px;padding:0;cursor:pointer}
+.attachbtn{flex:none;width:34px;min-height:38px;border-radius:4px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font-size:18px;cursor:pointer}
+.compose textarea.drop{outline:2px dashed var(--accent,currentColor);outline-offset:-3px}
+.compose textarea{flex:1;min-width:0;resize:none;min-height:38px;max-height:120px;font:13px/1.4 var(--body);padding:8px;border-radius:4px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.compose button{font:600 12px var(--mono);border:0;border-radius:4px;padding:0 14px;background:var(--uv);color:#fff;cursor:pointer}
+.compose button:disabled{opacity:.5;cursor:default}
+.compose .btns{display:flex;flex-direction:column;gap:4px}
+.compose button.plain{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.hint{font-size:12px;color:var(--muted)}
+dialog{border:0;padding:0;background:transparent;max-width:min(1100px,94vw);width:100%}
+dialog::backdrop{background:rgba(0,0,0,.82)}
+dialog .box{display:grid;gap:8px}
+dialog img,dialog video{width:100%;max-height:80vh;object-fit:contain;background:#000;border-radius:4px}
+dialog .cap{display:flex;justify-content:space-between;gap:10px;font:500 12px var(--mono);color:#ddd}
+dialog .cap button{font:600 12px var(--mono);background:#fff;color:#000;border:0;border-radius:4px;padding:4px 10px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.rail{scroll-behavior:auto}}
+</style>
+<div class="wrap">
+<header>
+  <h1><span id="boardtitle">Scene board</span><small id="boardsub">Loading…</small></h1>
+  <button type="button" class="full" id="fullbtn" hidden aria-label="Watch the latest full cut"><span class="thumb"><video id="fullthumb" muted playsinline loop preload="metadata"></video><span class="play"><span aria-hidden="true">▶</span></span></span><span class="meta2"><b>Latest full cut</b><span id="fullmeta"></span><i>Click to watch in cinema mode</i></span></button>
+  <button type="button" class="refresh" id="fullrefresh" title="Ask Claude to re-render the full film from the latest scene cuts" hidden>↻ Refresh</button>
+  <div class="counts" id="counts"></div>
+</header>
+<nav class="timeline" id="timeline" aria-label="Scenes on the timeline"></nav>
+<main class="rail" id="rail"></main>
+</div>
+<dialog id="cinema" class="cinema" aria-label="Full cut"><div class="stage"><video id="cinevid" controls playsinline></video><div class="bar"><span id="cinemeta"></span><button type="button" id="cineclose">Close (Esc)</button></div></div></dialog>
+<dialog id="viewer"><div class="box"><div id="vmedia"></div><div class="cap"><span id="vname"></span><button id="vclose" type="button">Close</button></div></div></dialog>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<script>
+// everything the board shows lives in the artifact's db, so agents update one row and never republish the page:
+//   board/meta  {title, subtitle, full:{src,hls,tag,when,ref}}   the header and the latest full cut
+//   scenes/<id> {n,title,t0,t1,shots,see,state,lyrics[],status,video,clip:{tag,what,when,ref},picks[],assets[]}
+//   status/<id> {status}  notes/*  {scene,by,text,at,ask?,media?}  activity/<id> {state,label,at}
+let SCENES=[]; let FULL=null; let META={}; let scenesLoaded=false;
+const STATUSES=[['placeholder','Placeholder'],['animatic','Animatic'],['footage','Footage'],['review','In review'],['final','Final']];
+const status={}; const statusOverride={};
+let notes=[]; let pending=[]; let activity={}; let notesLoaded=false; const chatState={}; let db=null, user=null, myId=null, comments=null, assets=null; const attach={};
+const fmt=t=>{const m=Math.floor(t/60),s=(t%60);return m+':'+s.toFixed(1).padStart(4,'0')};
+const el=(tag,props={},...kids)=>{const e=document.createElement(tag);for(const[k,v]of Object.entries(props)){if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v)}for(const c of kids)if(c!=null)e.append(c);return e};
+const total=()=>SCENES.length?Math.max(...SCENES.map(s=>s.t1||0)):0;
+
+const is4k=s=>/4K/.test((s.clip&&s.clip.tag)||'');
+function renderTimeline(){
+  const tl=document.getElementById('timeline');tl.replaceChildren();
+  for(const s of SCENES){
+    const b=el('button',{type:'button',title:`Scene ${s.n}: ${s.title}`,onclick:()=>document.getElementById('card-'+s.id).scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'})},el('span',{class:'bar st-'+status[s.id]}),String(s.n));
+    b.style.flex=String(Math.max(.5,(s.t1||0)-(s.t0||0)));if(typeof pendingAsk==='function'&&pendingAsk(s.id))b.append(el('span',{class:'dot',title:'Waiting on you'}));if(typeof workingOn==='function'&&workingOn(s.id))b.append(el('span',{class:'wdot',title:'Claude is working on it'}));if(is4k(s)){b.append(el('span',{class:'k4'},'4K'));b.title+=' · 4K'}tl.append(b);
+  }
+  const c=document.getElementById('counts');c.replaceChildren();
+  const waitN=SCENES.filter(s=>pendingAsk(s.id)).length;
+  const workN=SCENES.filter(s=>workingOn(s.id)).length;
+  if(workN)c.append(el('span',{class:'pill',style:'color:var(--uv);cursor:default'},`◌ ${workN} in progress`));
+  if(waitN)c.append(el('button',{type:'button',class:'pill',style:'color:var(--coin)',onclick:()=>document.getElementById('card-inbox').scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'})},`● ${waitN} waiting on you`));
+  {const n=SCENES.filter(is4k).length;if(n)c.append(el('span',{class:'pill',style:'color:var(--uv);cursor:default'},`${n}/${SCENES.length} in 4K`))}
+  for(const[k,label]of STATUSES){const n=SCENES.filter(s=>status[s.id]===k).length;if(n)c.append(el('span',{class:'pill st-'+k,style:'cursor:default'},`${n} ${label}`))}
+}
+function openViewer(a){
+  const m=document.getElementById('vmedia');m.replaceChildren(a.kind==='video'?el('video',{src:a.src,controls:'',autoplay:'',muted:'',loop:'',playsinline:''}):a.kind==='audio'?el('audio',{src:a.src,controls:'',autoplay:''}):a.kind==='text'?el('pre',{},a.text||''):el('img',{src:a.src,alt:a.name}));
+  document.getElementById('vname').textContent=a.name+(a.note?' · '+a.note:'');document.getElementById('viewer').showModal();
+}
+function renderHeader(){
+  const title=META.title||'Scene board';document.getElementById('boardtitle').textContent=title;document.title=title;
+  document.getElementById('boardsub').textContent=META.subtitle||(SCENES.length?`${SCENES.length} scenes · ${fmt(total())}`:'');
+  const t=document.getElementById('fullthumb'),fb=document.getElementById('fullbtn');
+  if(!FULL||!FULL.src){fb.hidden=true;return}
+  const label=`${FULL.tag||''} · ${FULL.when||''} · ${FULL.ref||''} · ${fmt(total())}`;
+  document.getElementById('fullmeta').textContent=label;document.getElementById('cinemeta').textContent=title+' · full cut '+label;
+  if(t.getAttribute('src')!==FULL.src){fb.hidden=false;t.src=FULL.src}
+}
+(()=>{
+  const t=document.getElementById('fullthumb'),cv=document.getElementById('cinevid'),dlg=document.getElementById('cinema');
+  // hide the tile if the cut isn't published yet
+  t.addEventListener('error',()=>{document.getElementById('fullbtn').hidden=true});
+  // the thumbnail plays muted only while it is on screen and the viewer has not asked for reduced motion
+  if(!matchMedia('(prefers-reduced-motion:reduce)').matches){try{new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting?t.play().catch(()=>{}):t.pause())).observe(t)}catch(e){}}
+  // the cinema plays the 1080p stream (HLS segments, each under the file limit); the 540p file is the fallback and the thumbnail
+  let hls=null;
+  const loadCinema=()=>{
+    // the playlist is served as text (artifacts don't serve .m3u8), so it goes through hls.js, not native HLS
+    if(!FULL)return;
+    if(FULL.hls&&window.Hls&&Hls.isSupported()){hls=new Hls({capLevelToPlayerSize:false});hls.loadSource(FULL.hls);hls.attachMedia(cv);hls.on(Hls.Events.ERROR,(e,d)=>{if(d.fatal){hls.destroy();hls=null;cv.src=FULL.src;cv.play().catch(()=>{})}});return}
+    cv.src=FULL.src;
+  };
+  document.getElementById('fullrefresh').onclick=requestRefresh;
+  document.getElementById('fullbtn').onclick=()=>{t.pause();loadCinema();dlg.showModal();cv.currentTime=0;cv.play().catch(()=>{})};
+  const close=()=>{cv.pause();dlg.close()};
+  document.getElementById('cineclose').onclick=close;
+  dlg.addEventListener('close',()=>{cv.pause();if(hls){hls.destroy();hls=null}cv.removeAttribute('src');cv.load()});
+})();
+// a fullscreen scene clip, or the cinema player, hides its controls (and the cinema bar and cursor) after 2.5 s without pointer or key activity while playing; any move brings them back
+(()=>{
+  const cv=document.getElementById('cinevid'),dlg=document.getElementById('cinema'),evs=['pointermove','pointerdown','keydown','wheel'];
+  let v=null,host=null,timer=0;
+  const hide=()=>{if(!v||v.paused)return;v.controls=false;v.classList.add('idle');host&&host.classList.add('idle')};
+  const show=()=>{if(!v)return;clearTimeout(timer);v.controls=true;v.classList.remove('idle');host&&host.classList.remove('idle');if(!v.paused)timer=setTimeout(hide,2500)};
+  const stop=()=>{clearTimeout(timer);if(v){v.controls=true;v.classList.remove('idle');v.removeEventListener('play',show);v.removeEventListener('pause',show)}host&&host.classList.remove('idle');evs.forEach(e=>document.removeEventListener(e,show,true));v=host=null};
+  const start=(video,h)=>{if(v===video&&host===h)return;stop();v=video;host=h;evs.forEach(e=>document.addEventListener(e,show,true));v.addEventListener('play',show);v.addEventListener('pause',show);show()};
+  const sync=()=>{const f=document.fullscreenElement||document.webkitFullscreenElement;
+    if(f&&f.tagName==='VIDEO')start(f,dlg.open&&dlg.contains(f)?dlg:null);
+    else if(f&&f.querySelector&&f.querySelector('video'))start(f.querySelector('video'),f);
+    else if(dlg.open)start(cv,dlg);else stop()};
+  document.addEventListener('fullscreenchange',sync);document.addEventListener('webkitfullscreenchange',sync);
+  cv.addEventListener('play',sync);dlg.addEventListener('close',sync);
+})();
+document.getElementById('vclose').onclick=()=>{document.getElementById('viewer').close();document.getElementById('vmedia').replaceChildren()};
+document.getElementById('viewer').addEventListener('close',()=>document.getElementById('vmedia').replaceChildren());
+
+function noteMedia(m){if(!Array.isArray(m)||!m.length)return null;
+  return el('div',{class:'notemedia'},...m.filter(x=>x&&x.src).map(x=>{const k=x.kind||(/\.(mp4|webm)$/i.test(x.src)?'video':'image');
+    const cap=x.name?el('div',{class:'cap'},x.name):null;
+    const open=()=>openViewer({src:x.src,kind:k,name:x.name||''});
+    if(k==='video')return el('figure',{},el('video',{src:x.src,controls:'',muted:'',playsinline:'',preload:'metadata'}),el('button',{type:'button',class:'nm-open',onclick:open,'aria-label':'Open larger'},'⤢ open'),cap);
+    return el('figure',{},el('button',{type:'button',class:'nm-img',onclick:open,'aria-label':'Open '+(x.name||'image')},el('img',{src:x.src,alt:x.name||'',loading:'lazy'})),cap)}))}
+function renderAttach(id){const row=document.getElementById('attach-'+id);if(!row)return;const list=attach[id]||[];row.hidden=!list.length;row.replaceChildren(...list.map((a,i)=>el('figure',{class:'att'+(a.busy?' busy':'')+(a.err?' err':'')},el('img',{src:a.preview,alt:a.name||'pasted image'}),a.busy?el('span',{class:'attst'},'Uploading…'):a.err?el('span',{class:'attst'},a.err):null,el('button',{type:'button',class:'attx','aria-label':'Remove image',onclick:()=>{list.splice(i,1);renderAttach(id)}},'×'))))}
+async function addImages(id,files,msg){
+  if(!assets){msg.textContent='Images can be added when you open this page on claude.ai with edit access.';return}
+  const list=attach[id]||(attach[id]=[]);
+  for(const f of files){
+    if(f.size>20*1024*1024){msg.textContent=(f.name||'Image')+' is over 20 MB.';continue}
+    const a={name:f.name&&f.name!=='image.png'?f.name:'pasted image',preview:URL.createObjectURL(f),busy:true};list.push(a);renderAttach(id);
+    try{const r=await assets.upload(f,f.type?undefined:{type:'image/png'});a.id=r.id;a.busy=false}
+    catch(e){a.busy=false;a.err=e&&e.code==='quota_exceeded'?'Storage full':e&&e.code==='not_granted'?'No permission':'Upload failed'}
+    renderAttach(id)}
+}
+async function renderNotes(id){
+  const box=document.getElementById('notes-'+id);if(!box)return;
+  pending=pending.filter(p=>p._failed||!notes.some(n=>n.scene===p.scene&&n.at===p.at&&n.text===p.text));
+  const list=notes.filter(n=>n.scene===id).concat(pending.filter(p=>p.scene===id)).sort((a,b)=>a.at-b.at);
+  const ids=[...new Set(list.map(n=>n.by).filter(x=>x&&x!=='claude'))];
+  let ps={};try{if(user&&ids.length)ps=await user.profiles(ids)}catch(e){}
+  const items=list.map(n=>{const isC=n.by==='claude';const who=isC?'Claude':(n.by&&n.by===myId?'You':((ps[n.by]&&ps[n.by].name)||META.director||'Director'));return el('div',{class:'note '+(isC?'claude':'me'),id:n._id?'note-'+n._id:null},el('div',{class:'who'},`${who} · ${new Date(n.at).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`,isC&&n._id?el('button',{type:'button',class:'replybtn',title:'Reply to this message','aria-label':'Reply to this message',onclick:()=>startReply(id,n)},'↩ Reply'):null),
+    n.replySnip?el('button',{type:'button',class:'quote',onclick:()=>{const t=document.getElementById('note-'+n.replyTo);if(t){t.scrollIntoView({block:'center',behavior:'smooth'});t.classList.add('flash');setTimeout(()=>t.classList.remove('flash'),1200)}}},'↩ Claude: '+n.replySnip):null,el('div',{style:'white-space:pre-wrap'},n.text),noteMedia(n.media),n._failed?el('div',{class:'hint',style:'color:var(--farm)'},n._failed):n._warn?el('div',{class:'hint'},n._warn):n._pending?el('div',{class:'hint'},'Sending…'):null)});
+  const last=list[list.length-1];
+  const act=activity[id];const fresh=act&&act.state&&act.state!=='idle'&&(Date.now()-(act.at||0)<6*3600e3)&&(!last||!(last.by==='claude'&&last.at>act.at));
+  const dots=()=>el('span',{class:'dots','aria-hidden':'true'},el('i'),el('i'),el('i'));
+  if(fresh)items.push(el('div',{class:'typing'+(act.state==='running'?' run':''),role:'status'},dots(),act.label||(act.state==='running'?'Claude is working on it':'Claude is typing')));
+  else if(last&&last.by!=='claude'&&last.toClaude)items.push(el('div',{class:'typing',role:'status'},dots(),'Sent to Claude'));
+  // never auto-scroll once the chat has opened: keep the reader's place and offer a pill for anything new below
+  const st=chatState[id]||(chatState[id]={init:false,count:0,fresh:0});
+  const sc=document.getElementById('upper-'+id);const prevTop=sc?sc.scrollTop:0;
+  box.replaceChildren(...(items.length?items:[el('div',{class:'hint'},db?'No messages yet. Write to Claude below.':'The chat loads when this page is open on claude.ai while signed in.')]));
+  // first load opens each thread at its latest message
+  if(!st.init){if(notesLoaded||!db){st.init=true;st.count=list.length;if(sc)requestAnimationFrame(()=>{sc.scrollTop=sc.scrollHeight})}return}
+  if(sc)sc.scrollTop=prevTop;
+  const added=list.length-st.count;st.count=list.length;
+  if(added>0&&sc&&sc.scrollHeight-sc.scrollTop-sc.clientHeight>24)st.fresh+=added;
+  updatePill(id);
+}
+function updatePill(id){
+  const box=document.getElementById('upper-'+id),pill=document.getElementById('newpill-'+id),st=chatState[id];if(!box||!pill||!st)return;
+  if(box.scrollHeight-box.scrollTop-box.clientHeight<=24)st.fresh=0;
+  const av=document.getElementById('assetsview-'+id);pill.hidden=!st.fresh||(av&&!av.hidden);pill.textContent=st.fresh===1?'↓ 1 new message':`↓ ${st.fresh} new messages`;
+}
+// a Claude note with an `ask` waits on the director until he posts on that card after it (or the ask is marked done)
+function pendingAsk(id){
+  const list=notes.filter(n=>n.scene===id);
+  const asks=list.filter(n=>n.by==='claude'&&n.ask&&!n.askDone).sort((a,b)=>b.at-a.at);
+  const a=asks[0];if(!a)return null;
+  const answered=list.some(n=>n.by!=='claude'&&n.at>a.at)||pending.some(p=>p.scene===id&&p.at>a.at);
+  return answered?null:a;
+}
+function goToChat(id){
+  const c=document.getElementById('card-'+id);if(!c)return;
+  c.scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'});
+  const up=document.getElementById('upper-'+id);if(up)setTimeout(()=>up.scrollTo({top:up.scrollHeight,behavior:'smooth'}),350);
+  setTimeout(()=>{const ta=document.getElementById('note-'+id);if(ta)ta.focus({preventScroll:true})},700);
+}
+// a card is in progress while its activity doc says typing/running and is under 6 h old (the same rule the chat's typing line uses)
+function renderRefresh(){const b=document.getElementById('fullrefresh');if(!b)return;b.hidden=!comments;const a=workingOn('full');b.setAttribute('aria-disabled',a?'true':'false');b.textContent=a?'◌ '+(a.label||'Rendering…'):'↻ Refresh'}
+async function requestRefresh(){
+  const b=document.getElementById('fullrefresh');if(!b||workingOn('full'))return;
+  b.setAttribute('aria-disabled','true');b.textContent='◌ Requesting…';
+  try{
+    const can=await comments.canSendToClaude().catch(()=>'off');if(can!=='available')throw {code:can};
+    const anchor=await comments.anchorFor(document.getElementById('fullbtn'));
+    await comments.sendToClaude({anchor,text:`[Full film] Refresh the header movie: re-render the full film from the latest scene cuts (now showing ${FULL?FULL.tag+' · '+FULL.ref:'nothing yet'}).`});
+    activity.full={state:'running',label:'Refresh requested',at:Date.now()};
+    try{if(db)await db.collection('activity').doc('full').set(activity.full)}catch(e){}
+    renderRefresh();
+  }catch(e){b.setAttribute('aria-disabled','false');b.textContent='↻ Refresh (failed: '+((e&&e.code)||'error')+')'}
+}
+function workingOn(id){const a=activity[id];return a&&a.state&&a.state!=='idle'&&(Date.now()-(a.at||0)<6*3600e3)?a:null}
+function renderWaiting(){
+  const items=[],runs=[];
+  for(const s of SCENES){
+    const a=pendingAsk(s.id),w=document.getElementById('wait-'+s.id);
+    if(w){w.hidden=!a;if(a)w.querySelector('span').textContent=a.ask}
+    if(a)items.push({s,a});
+    const r=workingOn(s.id),wk=document.getElementById('work-'+s.id);
+    if(wk){wk.hidden=!r;if(r)wk.querySelector('span').textContent=r.label||'Claude is working on this scene'}
+    if(r)runs.push({s,r});
+  }
+  const rb=document.getElementById('inboxruns');
+  if(rb)rb.replaceChildren(...(runs.length?[el('h3',{},`In progress · ${runs.length}`),...runs.map(({s,r})=>el('button',{type:'button',class:'item run',onclick:()=>goToChat(s.id)},
+      el('span',{class:'who'},`Scene ${s.n} · ${s.title} · since ${new Date(r.at).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`),
+      el('span',{class:'q'},r.label||'Claude is working on this scene')))]:[]));
+  const box=document.getElementById('inboxlist');
+  if(box)box.replaceChildren(...(items.length?items.map(({s,a})=>el('button',{type:'button',class:'item',onclick:()=>goToChat(s.id)},
+      el('span',{class:'who'},`Scene ${s.n} · ${s.title} · ${new Date(a.at).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`),
+      el('span',{class:'q'},a.ask))):[el('p',{class:'hint'},db?'Nothing is waiting on you right now.':'The inbox loads when this page is open on claude.ai while signed in.')]));
+  const ib=document.getElementById('inboxcount');if(ib)ib.textContent=items.length?`${items.length} waiting on you`:'All clear';
+  renderTimeline();
+}
+function inboxCard(){
+  return el('article',{class:'card inbox',id:'card-inbox'},
+    el('div',{class:'upper'},
+      el('div',{class:'meta'},el('span',{},el('b',{},'INBOX'),' · what needs your answer'),el('span',{id:'inboxcount'})),
+      el('h2',{},'Waiting on you'),
+      el('p',{class:'hint'},'Each item is a question from Claude on a scene card. Click one to jump to that card\'s chat; it clears when you reply there.'),
+      el('div',{id:'inboxlist'}),
+      el('div',{id:'inboxruns'})));
+}
+// drafts also live in the viewer's private db space (data/users/<id>), so they survive storage being cleared and follow the viewer to other devices
+const draftTimers={};
+function draftRef(id){return db&&myId?db.collection('data/users/'+myId).doc('draft-'+id):null}
+function saveDraftSoon(id,text,now){
+  clearTimeout(draftTimers[id]);
+  const go=async()=>{const r=draftRef(id);if(!r)return;try{text?await r.set({text,at:Date.now()}):await r.delete()}catch(e){}};
+  if(now)go();else draftTimers[id]=setTimeout(go,800);
+}
+async function loadDrafts(){
+  for(const s of SCENES){
+    const r=draftRef(s.id),ta=document.getElementById('note-'+s.id);if(!r||!ta)continue;
+    try{const snap=await r.get();const d=snap.exists&&snap.data();if(d&&d.text&&!ta.value)ta.value=d.text}catch(e){}
+  }
+}
+const replyTo={};
+function snipOf(t){t=(t||'').replace(/\s+/g,' ').trim();return t.length>110?t.slice(0,110)+'…':t}
+function startReply(id,n){replyTo[id]={id:n._id,snip:snipOf(n.text)};renderReplyBar(id);const ta=document.getElementById('note-'+id);if(ta)ta.focus()}
+function renderReplyBar(id){const b=document.getElementById('replybar-'+id);if(!b)return;const r=replyTo[id];b.hidden=!r;b.replaceChildren(...(r?[el('span',{},'↩ Replying to Claude: ',el('i',{},r.snip)),el('button',{type:'button','aria-label':'Cancel reply',onclick:()=>{delete replyTo[id];renderReplyBar(id)}},'×')]:[]))}
+function setTab(id,t){
+  const a=t==='assets';
+  document.getElementById('upper-'+id).hidden=a;document.getElementById('assetsview-'+id).hidden=!a;
+  document.getElementById('compose-'+id).hidden=a;document.getElementById('newpill-'+id).hidden=a||!(chatState[id]&&chatState[id].fresh);
+  document.getElementById('tabchat-'+id).setAttribute('aria-selected',String(!a));document.getElementById('tabassets-'+id).setAttribute('aria-selected',String(a));
+  try{localStorage.setItem('board-tab-'+id,t)}catch(e){}
+}
+function card(s){
+  const clip=s.clip||{tag:'—',what:'',when:'',ref:''};const lyr=s.lyrics||[];
+  const sel=el('select',{class:'pill st-'+status[s.id],id:'status-'+s.id,'aria-label':'Scene status',onchange:async e=>{const v=e.target.value;status[s.id]=v;e.target.className='pill st-'+v;renderTimeline();if(db){try{await db.doc('status/'+s.id).set({status:v,at:Date.now(),by:myId||null})}catch(err){}}}});
+  for(const[k,l]of STATUSES){const o=el('option',{value:k},l);if(status[s.id]===k)o.selected=true;sel.append(o)}
+  // assets newest first (stable for equal or unknown dates, so later additions listed first stay first)
+  const sAssets=s.assets||[];const byNew=sAssets.map((a,i)=>[a,i]).sort((x,y)=>(y[0].at||0)-(x[0].at||0)||x[1]-y[1]).map(x=>x[0]);
+  const when=t=>t?new Date(t).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+  const base=a=>a.name.split(' ')[0].split('/').pop();
+  const tile=a=>a.kind==='video'?el('video',{src:a.src,muted:'',playsinline:'',preload:a.lazy?'none':'metadata'}):a.kind==='audio'?el('div',{class:'doc'},el('b',{},'♪'),el('span',{},base(a))):a.kind==='text'?el('div',{class:'doc'},el('b',{},'TXT'),el('span',{},(a.text||'').split('\n').find(l=>l.trim())||base(a))):el('img',{src:a.src,alt:a.name,loading:'lazy'});
+  const tagOf=a=>a.kind==='video'?'▶ '+base(a).replace('.mp4',''):a.kind==='audio'||a.kind==='text'?base(a):base(a).replace(/\.(png|jpe?g|webp)$/,'');
+  const tiles=byNew.map(a=>el('button',{type:'button','data-kind':a.kind,title:a.name+(a.at?' · '+when(a.at):'')+(a.note?'\n'+a.note:''),onclick:()=>openViewer(a)},tile(a),a.at?el('span',{class:'when'},when(a.at)):null,el('span',{class:'tag'},tagOf(a))));
+  const assets=el('div',{class:'assets'},...tiles);
+  const nOf=k=>sAssets.filter(a=>k==='all'||a.kind===k).length;
+  const afilter=el('div',{class:'afilter',role:'group','aria-label':'Show'},...[['all','All'],['image','Images'],['video','Video'],['audio','Audio'],['text','Prompts']].filter(([k])=>k==='all'||nOf(k)).map(([k,l],i)=>el('button',{type:'button','aria-pressed':i?'false':'true',onclick:e=>{e.currentTarget.parentNode.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===e.currentTarget)));tiles.forEach(t=>t.hidden=k!=='all'&&t.dataset.kind!==k)}},`${l} ${nOf(k)}`)));
+  const ta=el('textarea',{id:'note-'+s.id,placeholder:'Message Claude about this scene','aria-label':'Message for this scene',maxlength:'3800'});
+  // unsent drafts stay in this browser per card (a convenience only: the page works without storage)
+  const draftKey='board-draft-'+s.id;
+  try{const d=localStorage.getItem(draftKey);if(d)ta.value=d}catch(e){}
+  ta.addEventListener('input',()=>{try{ta.value?localStorage.setItem(draftKey,ta.value):localStorage.removeItem(draftKey)}catch(e){}saveDraftSoon(s.id,ta.value)});
+  const msg=el('div',{class:'hint',id:'askmsg-'+s.id});
+  const send=async()=>{
+    const att=(attach[s.id]||[]);if(att.some(a=>a.busy)){msg.textContent='Wait for the image to finish uploading.';return}
+    const media=att.filter(a=>a.id).map(a=>({src:'/_blob/'+a.id,kind:'image',name:a.name||'pasted image'}));
+    const t=ta.value.trim();if(!t&&!media.length)return;
+    if(!db){msg.textContent='The chat works when this page is open on claude.ai while signed in.';return}
+    ask.disabled=true;msg.textContent='';
+    // show it right away, then save, then hand it to Claude
+    const r=replyTo[s.id];delete replyTo[s.id];renderReplyBar(s.id);
+    const local={scene:s.id,text:t,by:myId||'me',at:Date.now(),toClaude:true,_pending:true,...(media.length?{media}:{}),...(r?{replyTo:r.id,replySnip:r.snip}:{})};
+    pending.push(local);ta.value='';attach[s.id]=[];renderAttach(s.id);renderWaiting();try{localStorage.removeItem(draftKey)}catch(e){}saveDraftSoon(s.id,'',true);renderNotes(s.id);
+    try{
+      await db.collection('notes').add({scene:s.id,text:t,by:myId||'me',at:local.at,toClaude:true,...(media.length?{media}:{}),...(r?{replyTo:r.id,replySnip:r.snip}:{})});
+    }catch(e){local._failed='Not saved ('+(e&&e.code||'error')+'). Copy your text and send again.';ta.value=t;attach[s.id]=att;renderAttach(s.id);try{localStorage.setItem(draftKey,t)}catch(e2){}saveDraftSoon(s.id,t,true);renderNotes(s.id);ask.disabled=false;return}
+    try{
+      if(!comments)throw {code:'no_comments'};
+      const can=await comments.canSendToClaude().catch(()=>'off');
+      if(can!=='available')throw {code:can};
+      const anchor=await comments.anchorFor(document.getElementById('card-'+s.id));
+      await comments.sendToClaude({anchor,text:`[Scene ${s.n} · ${s.title}] ${r?`(replying to your note: "${r.snip}") `:''}${t}${media.length?`${t?' ':''}[${media.length} image${media.length>1?'s':''} attached in the scene chat: ${media.map(m=>m.src.slice(7)).join(', ')}]`:''}`});
+    }catch(e){local._warn=e&&e.code==='no_session'?'Saved. No Claude session is listening right now; Claude will read it next time.':e&&e.code==='consent_required'?'Saved, but not delivered to Claude: allow commenting from this page when asked, then send a short follow-up.':'Saved, but not delivered to Claude ('+(e&&e.code||'error')+').';renderNotes(s.id)}
+    ask.disabled=false};
+  const ask=el('button',{type:'button',class:'ask',onclick:send},'Send');
+  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}});
+  ta.addEventListener('paste',e=>{const fs=[...(e.clipboardData?.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addImages(s.id,fs,msg)}});
+  ta.addEventListener('dragover',e=>{if([...(e.dataTransfer?.items||[])].some(i=>i.kind==='file')){e.preventDefault();ta.classList.add('drop')}});
+  ta.addEventListener('dragleave',()=>ta.classList.remove('drop'));
+  ta.addEventListener('drop',e=>{ta.classList.remove('drop');const fs=[...(e.dataTransfer?.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addImages(s.id,fs,msg)}});
+  const fileIn=el('input',{type:'file',accept:'image/*',multiple:'',hidden:'',onchange:e=>{addImages(s.id,[...e.target.files],msg);e.target.value=''}});
+  const attachBtn=el('button',{type:'button',class:'attachbtn',title:'Attach images (or paste / drop them into the box)','aria-label':'Attach images',hidden:'',onclick:()=>fileIn.click()},'＋');
+  const attachRow=el('div',{class:'attachrow',id:'attach-'+s.id,hidden:''});
+  const notesBox=el('div',{class:'notes',id:'notes-'+s.id,role:'log','aria-live':'polite'});
+  const pill=el('button',{type:'button',class:'newpill',id:'newpill-'+s.id,hidden:'',onclick:()=>{const sc=document.getElementById('upper-'+s.id);sc.scrollTo({top:sc.scrollHeight,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}});
+  return el('article',{class:'card',id:'card-'+s.id},
+    el('button',{type:'button',class:'working',id:'work-'+s.id,hidden:'',onclick:()=>goToChat(s.id),title:'Claude is working on this scene: jump to the chat'},el('b',{},el('i',{class:'spin','aria-hidden':'true'}),'Working'),el('span',{})),
+    el('button',{type:'button',class:'waiting',id:'wait-'+s.id,hidden:'',onclick:()=>goToChat(s.id),title:'Claude is waiting on your answer: jump to the chat'},el('b',{},'● Waiting on you'),el('span',{})),
+    s.video?el('div',{class:'clipwrap'},el('video',{class:'main',src:s.video,controls:'',preload:'metadata',playsinline:''}),el('div',{class:'clipbadge'},el('b',{},'CLIP '+clip.tag),`${clip.when||''} · ${clip.ref||''}`)):null,
+    el('div',{class:'upper',id:'upper-'+s.id,onscroll:()=>updatePill(s.id)},
+    el('div',{class:'body'},
+      el('div',{},el('div',{class:'meta'},el('span',{},el('b',{},`SC ${String(s.n).padStart(2,'0')}`),` · ${fmt(s.t0||0)}–${fmt(s.t1||0)}${s.shots?' · '+s.shots:''}`),sel),el('h2',{},s.title)),
+      lyr.length?el('div',{},el('div',{class:'label'},META.lyricsLabel||'Lyrics'),el('div',{class:'lyrics'},...lyr.map(l=>el('p',{},l)))):s.lyrics?el('div',{},el('div',{class:'label'},META.lyricsLabel||'Lyrics'),el('div',{class:'hint'},'Instrumental')):null,
+      s.video?el('div',{class:'clipline'},'Playing above: ',el('b',{},'clip '+clip.tag),` — ${clip.what||''} · rendered ${clip.when||''} · ${clip.ref||''}`):el('div',{class:'hint'},'No clip yet.'),
+      s.picks&&s.picks.length?el('div',{class:'picks'},el('span',{class:'label'},'Compare'),...[{label:'Clip '+clip.tag,src:s.video},...s.picks].map((p,i)=>el('button',{type:'button','aria-pressed':i?'false':'true',onclick:e=>{const v=document.querySelector('#card-'+s.id+' video.main');v.src=p.src;v.play().catch(()=>{});e.currentTarget.parentNode.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===e.currentTarget)))}},p.label))):'',
+      s.see?el('div',{class:'text'},el('div',{class:'label'},'We see'),el('p',{},s.see)):null,
+      s.state?el('div',{class:'text'},el('div',{class:'label'},'Where it stands'),el('p',{},s.state)):null,
+      el('section',{'aria-label':`Chat about scene ${s.n}`},el('div',{class:'label'},'Chat with Claude'),notesBox)
+    )),
+    el('div',{class:'assetsview',id:'assetsview-'+s.id,hidden:''},el('div',{class:'label'},`Assets · ${sAssets.length} · newest first`),afilter,assets),
+    el('div',{class:'dock'},pill,el('div',{class:'replybar',id:'replybar-'+s.id,hidden:''}),attachRow,el('div',{class:'compose',id:'compose-'+s.id},attachBtn,fileIn,ta,ask),msg,
+      el('div',{class:'tabs',role:'tablist','aria-label':'Scene view'},
+        el('button',{type:'button',role:'tab','aria-selected':'true',id:'tabchat-'+s.id,onclick:()=>setTab(s.id,'chat')},'Scene & chat'),
+        el('button',{type:'button',role:'tab','aria-selected':'false',id:'tabassets-'+s.id,onclick:()=>setTab(s.id,'assets')},`Assets · ${sAssets.length}`))));
+}
+const rail=document.getElementById('rail');
+// cards fill the window below the header, so each card's input sits at the bottom of the screen
+const fitCards=()=>document.documentElement.style.setProperty('--railtop',Math.max(0,rail.getBoundingClientRect().top+window.scrollY)+'px');addEventListener('resize',fitCards);
+const placeholder=el('div',{class:'hint',id:'boardhint',style:'padding:24px'},'Loading the board…');
+rail.append(inboxCard(),placeholder);renderHeader();renderTimeline();renderWaiting();fitCards();
+// a scene card is rebuilt only when its own row changes; the draft, the tab and the chat's scroll position survive the swap
+const sceneKey={};
+function applyScenes(list){
+  SCENES=list.filter(s=>s&&s.id).sort((a,b)=>(a.n??1e9)-(b.n??1e9)||(a.t0||0)-(b.t0||0)||(a.id<b.id?-1:1)).map((s,i)=>s.n==null?{...s,n:i+1}:s);
+  for(const s of SCENES)status[s.id]=statusOverride[s.id]||s.status||'placeholder';
+  const live=new Set(SCENES.map(s=>s.id));
+  rail.querySelectorAll('article.card:not(.inbox)').forEach(c=>{if(!live.has(c.id.slice(5)))c.remove()});
+  let prev=document.getElementById('card-inbox');
+  for(const s of SCENES){
+    const k=JSON.stringify(s)+status[s.id];const old=document.getElementById('card-'+s.id);
+    if(old&&sceneKey[s.id]===k){prev=old;continue}
+    const ta=old&&old.querySelector('textarea'),up=old&&document.getElementById('upper-'+s.id);
+    const keep={text:ta?ta.value:null,top:up?up.scrollTop:null,assets:old?!document.getElementById('assetsview-'+s.id).hidden:null};
+    const c=card(s);sceneKey[s.id]=k;
+    if(old)old.replaceWith(c);else prev.after(c);prev=c;
+    if(keep.text!=null)document.getElementById('note-'+s.id).value=keep.text;
+    let tab=keep.assets==null?null:keep.assets?'assets':'chat';if(tab==null){try{tab=localStorage.getItem('board-tab-'+s.id)}catch(e){}}
+    if(tab==='assets')setTab(s.id,'assets');
+    if(keep.top!=null){const u=document.getElementById('upper-'+s.id);requestAnimationFrame(()=>{u.scrollTop=keep.top})}
+    else if(chatState[s.id])chatState[s.id].init=false;
+    document.querySelectorAll('#card-'+s.id+' .attachbtn').forEach(b=>b.hidden=!assets);
+    renderNotes(s.id);renderReplyBar(s.id);renderAttach(s.id);
+  }
+  placeholder.hidden=!!SCENES.length;
+  if(!SCENES.length)placeholder.textContent=scenesLoaded?'No scenes yet. Ask Claude to seed this board (sceneboard seed).':'Loading the board…';
+  renderHeader();renderWaiting();fitCards();
+}
+(async()=>{
+  try{user=await window.claude?.use('user');if(user)myId=await user.id()}catch(e){}
+  try{db=await window.claude?.use('db')}catch(e){db=null}
+  try{comments=await window.claude?.use('comments')}catch(e){comments=null}
+  try{assets=await window.claude?.use('assets')}catch(e){assets=null}
+  document.querySelectorAll('.attachbtn').forEach(b=>b.hidden=!assets);
+  renderRefresh();
+  if(!db){placeholder.textContent='This board loads when it is open on claude.ai while signed in.';return}
+  db.doc('board/meta').onSnapshot(snap=>{META=(snap.exists&&snap.data())||{};FULL=META.full||null;renderHeader();renderRefresh()},()=>{});
+  let draftsLoaded=false;
+  db.collection('scenes').onSnapshot(snap=>{scenesLoaded=true;applyScenes(snap.docs.map(d=>{const x=d.data();return x?Object.assign({id:d.id},x):null}).filter(Boolean));if(!draftsLoaded&&SCENES.length){draftsLoaded=true;loadDrafts()}},e=>{placeholder.textContent='Could not load the scenes ('+((e&&e.code)||'error')+').'});
+  db.collection('status').onSnapshot(snap=>{for(const d of snap.docs){const v=d.data()?.status;if(!v)continue;statusOverride[d.id]=v;if(status[d.id]!==undefined){status[d.id]=v;const sel=document.getElementById('status-'+d.id);if(sel){sel.value=v;sel.className='pill st-'+v}}}renderTimeline()},()=>{});
+  db.collection('activity').onSnapshot(snap=>{activity={};for(const d of snap.docs){activity[d.id]=d.data()||{}}SCENES.forEach(s=>renderNotes(s.id));renderWaiting();renderRefresh()},()=>{});
+  db.collection('notes').onSnapshot(snap=>{notes=snap.docs.map(d=>{const x=d.data();return x?Object.assign({_id:d.id},x):null}).filter(Boolean);notesLoaded=true;SCENES.forEach(s=>renderNotes(s.id));renderWaiting()},()=>{});
+})();
+</script>
+

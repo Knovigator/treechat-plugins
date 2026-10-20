@@ -1,0 +1,14 @@
+{
+  "name": "sceneboard",
+  "owner": {
+    "name": "Treechat"
+  },
+  "plugins": [
+    {
+      "name": "sceneboard",
+      "source": "./",
+      "description": "Scene review board + agent protocol for AI films"
+    }
+  ],
+  "description": "Scene review board + agent protocol for AI films on claude.ai Artifacts"
+}

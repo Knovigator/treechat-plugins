@@ -16,6 +16,7 @@ the template itself or to add files under `files`.
 | `status/<id>` | `{status}`: the director's status pick (placeholder · animatic · footage · review · final). It overrides `scenes/<id>.status`. |
 | `notes/*` | the scene chats: `{scene,by,text,at,ask?,media?,toClaude?,replyTo?}` |
 | `activity/<id>` | `{state:typing\|running\|idle,label,at}`: the purple "working" dot (`<id>` may be `full`) |
+| `spend/*` | `{scene,provider,action,cents,run?,at}`: one row per paid run; editors see the total in the header |
 
 The CLI is `node ${CLAUDE_PLUGIN_ROOT}/bin/sceneboard.mjs`, called `sb` below.
 - It builds every row you write, with the board's rules enforced: real timestamps, questions carry `ask`, and safe media paths.
@@ -47,6 +48,28 @@ A message arrives as `[Scene 3 · The lab] …` (or `[Full film] …`).
 7. **Tell the user in one line** what changed and on which card.
 
 Every reply goes in the scene chat (step 4), even if you also answered in the terminal or a comment thread. The board is the record.
+
+## Generating footage
+
+Use whatever generation tools this session has, in this order:
+
+1. **Treechat AI** (the `treechat` MCP server this plugin ships).
+   - It has image, video, lip-sync and upscaling models on one bill.
+   - First run: call `enable_generation`. The user signs in and sets their caps in the browser.
+   - `list_generation_actions` shows the models.
+   - For a run: `quote_generation` (show the quote), then after the user's yes `create_generation`. Use `generate_media` only when the user has said runs within their saved caps don't need asking.
+   - If a run returns `approval_required`, give the user the approval link. Only they can approve it.
+   - Poll `get_generation` for the result.
+2. **Another MCP server the user connected** (fal, Replicate, a local ComfyUI…): use its tools the same way, with a quote or price check first.
+3. **Their own command line:** `sb gen --provider <name> --kind <kind> --prompt … --out … --approved`, configured in `sceneboard.config.json` (see `sceneboard.config.example.json`).
+   - Their API keys stay in their environment.
+   - Never put a key in the board's db, a note or the page: everyone with the link can read those.
+
+Every paid run, whichever provider:
+
+- **Before:** show the prompt, the references and the cost. Wait for an explicit yes. A yes covers that one run.
+- **After:** `sb spend --scene s03 --provider treechat --action <model> --cents <what it cost> --run <run id> --out …`, then `ArtifactData set spend/<printed id>`. Editors see the running total in the header.
+- Make a small proxy of the result, add it to the scene's assets with its prompt, and say in the scene chat what ran and what it cost.
 
 ## The full cut
 

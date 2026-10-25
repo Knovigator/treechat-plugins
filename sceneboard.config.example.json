@@ -1,0 +1,8 @@
+{
+  "providers": {
+    "mygen": {
+      "video": ["my-gen", "video", "--prompt", "{prompt}", "--image", "{ref}", "--audio", "{audio}", "--out", "{out}"],
+      "image": ["my-gen", "image", "--prompt", "{prompt}", "--out", "{out}"]
+    }
+  }
+}

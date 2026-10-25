@@ -190,6 +190,8 @@ dialog .cap button{font:600 12px var(--mono);background:#fff;color:#000;border:0
 //   scenes/<id> {n,title,t0,t1,shots,see,state,lyrics[],status,video,clip:{tag,what,when,ref},picks[],assets[]}
 //   status/<id> {status}  notes/*  {scene,by,text,at,ask?,media?}  activity/<id> {state,label,at}
 let SCENES=[]; let FULL=null; let META={}; let scenesLoaded=false;
+//   spend/*     {scene,provider,action,cents,at}  paid runs; the header totals them for people who can edit
+let spendCents=0, spendRuns=0, canSeeSpend=false;
 const STATUSES=[['placeholder','Placeholder'],['animatic','Animatic'],['footage','Footage'],['review','In review'],['final','Final']];
 const status={}; const statusOverride={};
 let notes=[]; let pending=[]; let activity={}; let notesLoaded=false; const chatState={}; let db=null, user=null, myId=null, comments=null, assets=null; const attach={};
@@ -209,6 +211,7 @@ function renderTimeline(){
   const workN=SCENES.filter(s=>workingOn(s.id)).length;
   if(workN)c.append(el('span',{class:'pill',style:'color:var(--uv);cursor:default'},`◌ ${workN} in progress`));
   if(waitN)c.append(el('button',{type:'button',class:'pill',style:'color:var(--coin)',onclick:()=>document.getElementById('card-inbox').scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'})},`● ${waitN} waiting on you`));
+  if(canSeeSpend&&spendRuns)c.append(el('span',{class:'pill',style:'color:var(--coin);cursor:default',title:`${spendRuns} paid run${spendRuns===1?'':'s'} logged on this board`},`$${(spendCents/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} spent`));
   {const n=SCENES.filter(is4k).length;if(n)c.append(el('span',{class:'pill',style:'color:var(--uv);cursor:default'},`${n}/${SCENES.length} in 4K`))}
   for(const[k,label]of STATUSES){const n=SCENES.filter(s=>status[s.id]===k).length;if(n)c.append(el('span',{class:'pill st-'+k,style:'cursor:default'},`${n} ${label}`))}
 }
@@ -505,6 +508,8 @@ function applyScenes(list){
   document.querySelectorAll('.attachbtn').forEach(b=>b.hidden=!assets);
   renderRefresh();
   if(!db){placeholder.textContent='This board loads when it is open on claude.ai while signed in.';return}
+  try{canSeeSpend=!!(user&&((await user.canEdit())||(await user.isOwner())))}catch(e){canSeeSpend=false}
+  if(canSeeSpend)db.collection('spend').onSnapshot(snap=>{let c=0,n=0;for(const d of snap.docs){const x=d.data();if(x&&Number.isFinite(x.cents)){c+=x.cents;n++}}spendCents=c;spendRuns=n;renderTimeline()},()=>{});
   db.doc('board/meta').onSnapshot(snap=>{META=(snap.exists&&snap.data())||{};FULL=META.full||null;renderHeader();renderRefresh()},()=>{});
   let draftsLoaded=false;
   db.collection('scenes').onSnapshot(snap=>{scenesLoaded=true;applyScenes(snap.docs.map(d=>{const x=d.data();return x?Object.assign({id:d.id},x):null}).filter(Boolean));if(!draftsLoaded&&SCENES.length){draftsLoaded=true;loadDrafts()}},e=>{placeholder.textContent='Could not load the scenes ('+((e&&e.code)||'error')+').'});

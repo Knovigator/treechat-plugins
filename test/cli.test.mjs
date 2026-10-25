@@ -54,3 +54,23 @@ test('extract pulls baked scenes out of a v0 board', () => {
 });
 
 test('whenUTC', () => assert.equal(whenUTC(Date.UTC(2026, 9, 16, 3, 57)), 'Oct 16 03:57'));
+
+import { buildSpend, buildCommand } from '../bin/sceneboard.mjs';
+
+test('spend rows are whole cents with a provider and action', () => {
+  assert.deepEqual(buildSpend({ scene: 's03', provider: 'treechat', action: 'seedance2.5hf', cents: '276', now }),
+    { scene: 's03', provider: 'treechat', action: 'seedance2.5hf', cents: 276, at: now });
+  assert.throws(() => buildSpend({ scene: 's03', provider: 'treechat', action: 'x', cents: '2.76', now }), UsageError);
+  assert.throws(() => buildSpend({ scene: 's03', action: 'x', cents: 1, now }), UsageError);
+  assert.equal(buildSpend({ scene: 'board', provider: 'fal', action: 'x', cents: 0, now }).scene, 'board');
+});
+
+test('bring-your-own commands fill placeholders per argument, never through a shell', () => {
+  const tpl = ['my-gen', '--prompt', '{prompt}', '--image', '{ref}', '--out', '{out}'];
+  assert.deepEqual(buildCommand(tpl, { prompt: 'a; rm -rf ~ $(x)', ref: 'a.png', out: 'o.mp4' }),
+    ['my-gen', '--prompt', 'a; rm -rf ~ $(x)', '--image', 'a.png', '--out', 'o.mp4']);
+  assert.deepEqual(buildCommand(tpl, { prompt: 'p', out: 'o.mp4' }), ['my-gen', '--prompt', 'p', '--out', 'o.mp4']);
+  assert.deepEqual(buildCommand(['g', 'x={prompt}'], { prompt: 'p' }), ['g', 'x=p']);
+  assert.throws(() => buildCommand(['g', 'x={prompt}'], {}), UsageError);
+  assert.throws(() => buildCommand('my-gen {prompt}', {}), UsageError);
+});

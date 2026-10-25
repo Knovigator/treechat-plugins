@@ -2,8 +2,10 @@
 // sceneboard: builds the db rows a scene board reads, with the board's rules checked in code.
 // It never talks to claude.ai itself. Each command writes a JSON file and prints the ArtifactData call
 // that applies it, so the agent's only job is to make that call (pinned with if_version).
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { homedir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 
 const STATES = ['placeholder', 'animatic', 'footage', 'review', 'final'];
 const ACTIVITY = ['typing', 'running', 'idle'];
@@ -104,6 +106,43 @@ export function buildFull({ src, hls, tag, ref, now }) {
   return { full: { src: parseMedia(src).src, ...(hls ? { hls: parseMedia(hls).src } : {}), tag: String(tag), when: whenUTC(now), ref: ref ? String(ref) : '' } };
 }
 
+// one paid generation, kept on the board so the header can show what the film has cost so far
+export function buildSpend({ scene, provider, action, cents, run, note, now }) {
+  const sc = scene === 'board' ? 'board' : sceneId(scene);
+  if (!provider) fail('--provider is required (e.g. treechat, fal, mygen)');
+  if (!action) fail('--action is required (the model or action that ran)');
+  const c = Number(cents);
+  if (!Number.isInteger(c) || c < 0) fail('--cents must be a whole number of US cents (0 if free)');
+  return { scene: sc, provider: String(provider), action: String(action), cents: c, ...(run ? { run: String(run) } : {}), ...(note ? { note: String(note) } : {}), at: now };
+}
+
+// Bring-your-own generators: sceneboard.config.json maps a provider + kind to a command, one argv entry per
+// array item. {prompt} {ref} {audio} {out} are filled in per argument and never pass through a shell, so a
+// prompt can't run anything. An argument that is only a missing placeholder is dropped with its flag.
+export function loadConfig(explicit) {
+  const paths = explicit ? [explicit] : [resolve('sceneboard.config.json'), join(homedir(), '.config', 'sceneboard', 'config.json')];
+  for (const p of paths) if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
+  if (explicit) fail(`no config at ${explicit}`);
+  return {};
+}
+
+export function buildCommand(template, vals) {
+  if (!Array.isArray(template) || !template.length || template.some((a) => typeof a !== 'string')) fail('a provider command must be an array of strings, e.g. ["my-gen", "--prompt", "{prompt}"]');
+  const out = [];
+  for (const arg of template) {
+    const only = arg.match(/^\{(\w+)\}$/);
+    if (only && (vals[only[1]] == null || vals[only[1]] === '')) {
+      if (out.length > 1 && out[out.length - 1].startsWith('-')) out.pop();
+      continue;
+    }
+    out.push(arg.replace(/\{(\w+)\}/g, (m, k) => {
+      if (vals[k] == null) fail(`the command needs {${k}}: pass --${k}`);
+      return String(vals[k]);
+    }));
+  }
+  return out;
+}
+
 export function validateScenes(scenes) {
   if (!Array.isArray(scenes) || !scenes.length) fail('scenes file must be a non-empty JSON array');
   const seen = new Set();
@@ -163,6 +202,11 @@ const HELP = `sceneboard <command> [options]   (every command writes --out <file
                                             put a new clip at the top of a card (pass --current, the row you just read,
                                             so the replaced clip and new assets are kept)
   full --src <mp4> [--hls <m3u8.txt>] --tag <t> [--ref <sha>] --out <file>   the header's full cut
+  spend --scene <id|board> --provider <p> --action <model> --cents <n> [--run <id>] [--note <t>] --out <file>
+                                            record one paid run (the header shows the running total to editors)
+  gen --provider <name> --kind <kind> --prompt <t> [--ref <file>] [--audio <file>] --out <file> --approved
+      [--config <file>]                     run your own generator from sceneboard.config.json (no shell);
+                                            --approved means the user said yes to this run and its cost
 `;
 
 export function run(argv, now = Date.now()) {
@@ -197,6 +241,20 @@ export function run(argv, now = Date.now()) {
       const row = current.data && typeof current.data === 'object' && !current.video ? current.data : current;
       const upd = buildClip({ current: row, video: opt.video, tag: opt.tag, what: opt.what, ref: opt.ref, state: opt.state, status: opt.status, assets: list(opt.asset), now });
       return { print: JSON.stringify(call('update', 'scenes', scene, writeJSON(needOut(), upd), true), null, 2) };
+    }
+    case 'spend': {
+      const row = buildSpend({ scene: opt.scene, provider: opt.provider, action: opt.action, cents: opt.cents, run: opt.run, note: opt.note, now });
+      return { print: JSON.stringify(call('set', 'spend', `${row.provider}-${now}`, writeJSON(needOut(), row)), null, 2) };
+    }
+    case 'gen': {
+      if (!opt.provider || !opt.kind) fail('--provider and --kind are required');
+      if (!opt.approved) fail('show the user the prompt and the expected cost, get a yes, then pass --approved');
+      const cfg = loadConfig(typeof opt.config === 'string' ? opt.config : undefined);
+      const tpl = cfg.providers?.[opt.provider]?.[opt.kind];
+      if (!tpl) fail(`no providers.${opt.provider}.${opt.kind} command in sceneboard.config.json`);
+      const argv = buildCommand(tpl, { prompt: opt.prompt, ref: opt.ref, audio: opt.audio, out: needOut() });
+      execFileSync(argv[0], argv.slice(1), { stdio: ['ignore', 'inherit', 'inherit'] });
+      return { print: JSON.stringify({ ran: argv[0], out: resolve(out) }), note: 'Record the cost with `sceneboard spend`, then publish the file to the card.' };
     }
     case 'full':
       return { print: JSON.stringify(call('update', 'board', 'meta', writeJSON(needOut(), buildFull({ src: opt.src, hls: opt.hls, tag: opt.tag, ref: opt.ref, now })), true), null, 2) };

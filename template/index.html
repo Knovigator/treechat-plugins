@@ -447,7 +447,8 @@ function composer(id,prefix,placeholder,label){
     }catch(e){local._warn=e&&e.code==='no_session'?'Saved. No Claude session is listening right now; Claude will read it next time.':e&&e.code==='consent_required'?'Saved, but not delivered to Claude: allow commenting from this page when asked, then send a short follow-up.':'Saved, but not delivered to Claude ('+(e&&e.code||'error')+').';renderNotes(id)}
     ask.disabled=false};
   const ask=el('button',{type:'button',class:'ask',onclick:send},'Send');
-  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}});
+  // Enter sends, Shift+Enter adds a line (left alone while an IME is composing)
+  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}});
   ta.addEventListener('paste',e=>{const fs=[...(e.clipboardData?.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addImages(id,fs,msg)}});
   ta.addEventListener('dragover',e=>{if([...(e.dataTransfer?.items||[])].some(i=>i.kind==='file')){e.preventDefault();ta.classList.add('drop')}});
   ta.addEventListener('dragleave',()=>ta.classList.remove('drop'));

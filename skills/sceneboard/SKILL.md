@@ -1,6 +1,6 @@
 ---
 name: sceneboard
-description: Run a film's scene review board on claude.ai Artifacts — set one up, act on the director's scene comments, reply in the scene chat, mark work in progress, and publish new clips and full cuts to the board. Use whenever a message starts with "[Scene N · Title]" or "[Full film]", or the user asks to make, seed, update or publish to a scene board.
+description: Run a film's scene review board on claude.ai Artifacts — set one up, act on the director's scene comments, reply in the scene chat, mark work in progress, and publish new clips and full cuts to the board. Use whenever a message starts with "[Scene N · Title]", "[Global]" or "[Full film]", or the user asks to make, seed, update or publish to a scene board.
 ---
 
 # Scene board
@@ -14,7 +14,7 @@ the template itself or to add files under `files`.
 | `board/meta` | `{title, subtitle?, director?, lyricsLabel?, full:{src,hls?,tag,when,ref}}`: the header and the latest full cut |
 | `scenes/<id>` | `{n,title,t0,t1,shots?,see?,state?,lyrics?,status,video?,clip:{tag,what,when,ref},picks?,assets[]}` |
 | `status/<id>` | `{status}`: the director's status pick (placeholder · animatic · footage · review · final). It overrides `scenes/<id>.status`. |
-| `notes/*` | the scene chats: `{scene,by,text,at,ask?,media?,toClaude?,replyTo?}` |
+| `notes/*` | the scene chats, plus the board-wide chat on the Global card (`scene: "global"`): `{scene,by,text,at,ask?,media?,toClaude?,replyTo?}` |
 | `activity/<id>` | `{state:typing\|running\|idle,label,at}`: the purple "working" dot (`<id>` may be `full`) |
 | `spend/*` | `{scene,provider,action,cents,run?,at}`: one row per paid run; editors see the total in the header |
 
@@ -25,7 +25,7 @@ The CLI is `node ${CLAUDE_PLUGIN_ROOT}/bin/sceneboard.mjs`, called `sb` below.
 
 ## The loop: one director comment
 
-A message arrives as `[Scene 3 · The lab] …` (or `[Full film] …`).
+A message arrives as `[Scene 3 · The lab] …`, `[Global] …` (the board-wide chat, for anything not about one scene) or `[Full film] …`. For `[Global]`, use `--scene global` in every step below.
 
 1. **Mark it as in progress:**
    - `sb activity --scene s03 --state running --label "<what you are doing>" --out …`

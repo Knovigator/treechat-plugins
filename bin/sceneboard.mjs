@@ -148,6 +148,7 @@ export function validateScenes(scenes) {
   const seen = new Set();
   return scenes.map((s, i) => {
     const id = sceneId(s.id);
+    if (id === 'global' || id === 'full') fail(`scene id ${id} is reserved for the board`);
     if (seen.has(id)) fail(`duplicate scene id ${id}`);
     seen.add(id);
     if (!s.title) fail(`scene ${id}: title is required`);
@@ -194,9 +195,9 @@ const HELP = `sceneboard <command> [options]   (every command writes --out <file
   seed <scenes.json> [--meta m.json] --out <dir>
                                             validate scenes and write one row per scene + board/meta, as batch calls
   extract <old-board.html> --out <dir>      migrate a board whose SCENES were baked into the page
-  note --scene <id> --text <t> [--ask <q> | --no-ask] [--media <src|name>]... [--reply-to <noteId>] --out <file>
+  note --scene <id|global> --text <t> [--ask <q> | --no-ask] [--media <src|name>]... [--reply-to <noteId>] --out <file>
                                             a Claude chat note; questions must carry --ask
-  activity --scene <id|full> --state typing|running|idle [--label <t>] --out <file>
+  activity --scene <id|global|full> --state typing|running|idle [--label <t>] --out <file>
   clip --scene <id> --video <src> --tag <t> [--what <t>] [--ref <sha>] [--state <t>] [--status <s>]
        [--asset <src|name>]... [--current <scene.json>] --out <file>
                                             put a new clip at the top of a card (pass --current, the row you just read,

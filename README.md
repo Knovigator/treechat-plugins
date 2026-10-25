@@ -6,7 +6,7 @@ The board is a [claude.ai Artifact](https://claude.ai). It shows:
 
 - **Timeline**: every scene sized by its length. A yellow dot means a scene is waiting on the director, a purple dot means an agent is working on it, and a `4K` badge marks a 4K clip.
 - **Scene cards**: the current clip with its version tag, the lyrics, what we see, where the scene stands, and every asset ever made for it.
-- **A chat per scene**: the director writes, and the message is sent to the Claude session; Claude answers in the same thread. A question from Claude lands in an **inbox** until the director replies.
+- **A chat per scene**: the director writes, and the message is sent to the Claude session; Claude answers in the same thread. A question from Claude lands in the **Global** card's Inbox tab until the director replies. Its Chat tab is a board-wide chat for anything not about one scene.
 - **The latest full cut** in the header, with a cinema player (HLS).
 
 All content lives in the artifact's database, so an agent changes one row and every open board updates live.

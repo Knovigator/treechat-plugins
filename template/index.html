@@ -121,7 +121,7 @@ h2{font:800 26px/1 var(--display);text-transform:uppercase;margin:2px 0 0;letter
 .tabs button[aria-selected=true]{color:var(--fg);border-color:var(--fg)}
 .tabs button:focus-visible{outline:2px solid var(--uv);outline-offset:1px}
 .card .assetsview{flex:1 1 auto;min-height:120px;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;padding:12px 16px}
-.card .assetsview[hidden],.card .upper[hidden],.compose[hidden]{display:none}
+.card .assetsview[hidden],.card .upper[hidden],.compose[hidden],#chatdock-global[hidden]{display:none}
 .assetsview .assets{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .assetsview .assets button{aspect-ratio:16/9}
 .assets button[hidden]{display:none}
@@ -207,10 +207,10 @@ function renderTimeline(){
     b.style.flex=String(Math.max(.5,(s.t1||0)-(s.t0||0)));if(typeof pendingAsk==='function'&&pendingAsk(s.id))b.append(el('span',{class:'dot',title:'Waiting on you'}));if(typeof workingOn==='function'&&workingOn(s.id))b.append(el('span',{class:'wdot',title:'Claude is working on it'}));if(is4k(s)){b.append(el('span',{class:'k4'},'4K'));b.title+=' · 4K'}tl.append(b);
   }
   const c=document.getElementById('counts');c.replaceChildren();
-  const waitN=SCENES.filter(s=>pendingAsk(s.id)).length;
+  const waitN=SCENES.filter(s=>pendingAsk(s.id)).length+(pendingAsk('global')?1:0);
   const workN=SCENES.filter(s=>workingOn(s.id)).length;
   if(workN)c.append(el('span',{class:'pill',style:'color:var(--uv);cursor:default'},`◌ ${workN} in progress`));
-  if(waitN)c.append(el('button',{type:'button',class:'pill',style:'color:var(--coin)',onclick:()=>document.getElementById('card-inbox').scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'})},`● ${waitN} waiting on you`));
+  if(waitN)c.append(el('button',{type:'button',class:'pill',style:'color:var(--coin)',onclick:()=>document.getElementById('card-global').scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'})},`● ${waitN} waiting on you`));
   if(canSeeSpend&&spendRuns)c.append(el('span',{class:'pill',style:'color:var(--coin);cursor:default',title:`${spendRuns} paid run${spendRuns===1?'':'s'} logged on this board`},`$${(spendCents/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} spent`));
   {const n=SCENES.filter(is4k).length;if(n)c.append(el('span',{class:'pill',style:'color:var(--uv);cursor:default'},`${n}/${SCENES.length} in 4K`))}
   for(const[k,label]of STATUSES){const n=SCENES.filter(s=>status[s.id]===k).length;if(n)c.append(el('span',{class:'pill st-'+k,style:'cursor:default'},`${n} ${label}`))}
@@ -301,7 +301,7 @@ async function renderNotes(id){
   const sc=document.getElementById('upper-'+id);const prevTop=sc?sc.scrollTop:0;
   box.replaceChildren(...(items.length?items:[el('div',{class:'hint'},db?'No messages yet. Write to Claude below.':'The chat loads when this page is open on claude.ai while signed in.')]));
   // first load opens each thread at its latest message
-  if(!st.init){if(notesLoaded||!db){st.init=true;st.count=list.length;if(sc)requestAnimationFrame(()=>{sc.scrollTop=sc.scrollHeight})}return}
+  if(!st.init){if(notesLoaded||!db){st.init=true;st.count=list.length;if(sc&&!sc.hidden){st.opened=true;requestAnimationFrame(()=>{sc.scrollTop=sc.scrollHeight})}}return}
   if(sc)sc.scrollTop=prevTop;
   const added=list.length-st.count;st.count=list.length;
   if(added>0&&sc&&sc.scrollHeight-sc.scrollTop-sc.clientHeight>24)st.fresh+=added;
@@ -310,7 +310,7 @@ async function renderNotes(id){
 function updatePill(id){
   const box=document.getElementById('upper-'+id),pill=document.getElementById('newpill-'+id),st=chatState[id];if(!box||!pill||!st)return;
   if(box.scrollHeight-box.scrollTop-box.clientHeight<=24)st.fresh=0;
-  const av=document.getElementById('assetsview-'+id);pill.hidden=!st.fresh||(av&&!av.hidden);pill.textContent=st.fresh===1?'↓ 1 new message':`↓ ${st.fresh} new messages`;
+  const av=document.getElementById('assetsview-'+id);pill.hidden=!st.fresh||(av&&!av.hidden)||box.hidden;pill.textContent=st.fresh===1?'↓ 1 new message':`↓ ${st.fresh} new messages`;
 }
 // a Claude note with an `ask` waits on the director until he posts on that card after it (or the ask is marked done)
 function pendingAsk(id){
@@ -322,6 +322,7 @@ function pendingAsk(id){
 }
 function goToChat(id){
   const c=document.getElementById('card-'+id);if(!c)return;
+  if(id==='global')setGlobalTab('chat');
   c.scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'});
   const up=document.getElementById('upper-'+id);if(up)setTimeout(()=>up.scrollTo({top:up.scrollHeight,behavior:'smooth'}),350);
   setTimeout(()=>{const ta=document.getElementById('note-'+id);if(ta)ta.focus({preventScroll:true})},700);
@@ -343,7 +344,7 @@ async function requestRefresh(){
 function workingOn(id){const a=activity[id];return a&&a.state&&a.state!=='idle'&&(Date.now()-(a.at||0)<6*3600e3)?a:null}
 function renderWaiting(){
   const items=[],runs=[];
-  for(const s of SCENES){
+  for(const s of [{id:'global',title:'Global chat'},...SCENES]){
     const a=pendingAsk(s.id),w=document.getElementById('wait-'+s.id);
     if(w){w.hidden=!a;if(a)w.querySelector('span').textContent=a.ask}
     if(a)items.push({s,a});
@@ -353,23 +354,43 @@ function renderWaiting(){
   }
   const rb=document.getElementById('inboxruns');
   if(rb)rb.replaceChildren(...(runs.length?[el('h3',{},`In progress · ${runs.length}`),...runs.map(({s,r})=>el('button',{type:'button',class:'item run',onclick:()=>goToChat(s.id)},
-      el('span',{class:'who'},`Scene ${s.n} · ${s.title} · since ${new Date(r.at).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`),
+      el('span',{class:'who'},`${s.n?`Scene ${s.n} · `:''}${s.title} · since ${new Date(r.at).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`),
       el('span',{class:'q'},r.label||'Claude is working on this scene')))]:[]));
   const box=document.getElementById('inboxlist');
   if(box)box.replaceChildren(...(items.length?items.map(({s,a})=>el('button',{type:'button',class:'item',onclick:()=>goToChat(s.id)},
-      el('span',{class:'who'},`Scene ${s.n} · ${s.title} · ${new Date(a.at).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`),
+      el('span',{class:'who'},`${s.n?`Scene ${s.n} · `:''}${s.title} · ${new Date(a.at).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`),
       el('span',{class:'q'},a.ask))):[el('p',{class:'hint'},db?'Nothing is waiting on you right now.':'The inbox loads when this page is open on claude.ai while signed in.')]));
   const ib=document.getElementById('inboxcount');if(ib)ib.textContent=items.length?`${items.length} waiting on you`:'All clear';
+  const tb=document.getElementById('tabinbox-global');if(tb)tb.textContent=items.length?`Inbox · ${items.length}`:'Inbox';
   renderTimeline();
 }
-function inboxCard(){
-  return el('article',{class:'card inbox',id:'card-inbox'},
-    el('div',{class:'upper'},
-      el('div',{class:'meta'},el('span',{},el('b',{},'INBOX'),' · what needs your answer'),el('span',{id:'inboxcount'})),
+// the Global card: an Inbox tab (Claude's open questions and what is in progress, across the board) and a board-wide Chat tab (notes with scene "global")
+function setGlobalTab(t){
+  const c=t==='chat';
+  document.getElementById('inboxview-global').hidden=c;document.getElementById('upper-global').hidden=!c;document.getElementById('chatdock-global').hidden=!c;
+  document.getElementById('tabinbox-global').setAttribute('aria-selected',String(!c));document.getElementById('tabchat-global').setAttribute('aria-selected',String(c));
+  if(c){const st=chatState.global;if(st&&!st.opened){st.opened=true;const u=document.getElementById('upper-global');requestAnimationFrame(()=>{u.scrollTop=u.scrollHeight})}updatePill('global')}
+  try{localStorage.setItem('board-tab-global',t)}catch(e){}
+}
+function globalCard(){
+  const c=el('article',{class:'card inbox',id:'card-global'},
+    el('div',{class:'upper',id:'inboxview-global'},
+      el('div',{class:'meta'},el('span',{},el('b',{},'GLOBAL'),' · what needs your answer'),el('span',{id:'inboxcount'})),
       el('h2',{},'Waiting on you'),
-      el('p',{class:'hint'},'Each item is a question from Claude on a scene card. Click one to jump to that card\'s chat; it clears when you reply there.'),
+      el('p',{class:'hint'},'Each item is a question from Claude. Click one to jump to its chat; it clears when you reply there.'),
       el('div',{id:'inboxlist'}),
-      el('div',{id:'inboxruns'})));
+      el('div',{id:'inboxruns'})),
+    el('div',{class:'upper',id:'upper-global',hidden:'',onscroll:()=>updatePill('global')},
+      el('div',{class:'meta'},el('span',{},el('b',{},'GLOBAL'),' · the whole film')),
+      el('h2',{},'Chat'),
+      el('p',{class:'hint'},'For anything that is not about one scene: the script, the edit, the music, the plan.'),
+      el('section',{'aria-label':'Board-wide chat'},el('div',{class:'notes',id:'notes-global',role:'log','aria-live':'polite'}))),
+    el('div',{class:'dock'},
+      el('div',{id:'chatdock-global',hidden:''},...composer('global','[Global]','Message Claude about the whole film','Message for the whole film')),
+      el('div',{class:'tabs',role:'tablist','aria-label':'Global view'},
+        el('button',{type:'button',role:'tab','aria-selected':'true',id:'tabinbox-global',onclick:()=>setGlobalTab('inbox')},'Inbox'),
+        el('button',{type:'button',role:'tab','aria-selected':'false',id:'tabchat-global',onclick:()=>setGlobalTab('chat')},'Chat'))));
+  return c;
 }
 // drafts also live in the viewer's private db space (data/users/<id>), so they survive storage being cleared and follow the viewer to other devices
 const draftTimers={};
@@ -380,7 +401,7 @@ function saveDraftSoon(id,text,now){
   if(now)go();else draftTimers[id]=setTimeout(go,800);
 }
 async function loadDrafts(){
-  for(const s of SCENES){
+  for(const s of [{id:'global'},...SCENES]){
     const r=draftRef(s.id),ta=document.getElementById('note-'+s.id);if(!r||!ta)continue;
     try{const snap=await r.get();const d=snap.exists&&snap.data();if(d&&d.text&&!ta.value)ta.value=d.text}catch(e){}
   }
@@ -396,6 +417,47 @@ function setTab(id,t){
   document.getElementById('tabchat-'+id).setAttribute('aria-selected',String(!a));document.getElementById('tabassets-'+id).setAttribute('aria-selected',String(a));
   try{localStorage.setItem('board-tab-'+id,t)}catch(e){}
 }
+// the chat composer under a card: the message is saved as a note, then handed to Claude with the card's prefix ([Scene N · Title] or [Global])
+function composer(id,prefix,placeholder,label){
+  const ta=el('textarea',{id:'note-'+id,placeholder,'aria-label':label,maxlength:'3800'});
+  // unsent drafts stay in this browser per card (a convenience only: the page works without storage)
+  const draftKey='board-draft-'+id;
+  try{const d=localStorage.getItem(draftKey);if(d)ta.value=d}catch(e){}
+  ta.addEventListener('input',()=>{try{ta.value?localStorage.setItem(draftKey,ta.value):localStorage.removeItem(draftKey)}catch(e){}saveDraftSoon(id,ta.value)});
+  const msg=el('div',{class:'hint',id:'askmsg-'+id});
+  const send=async()=>{
+    const att=(attach[id]||[]);if(att.some(a=>a.busy)){msg.textContent='Wait for the image to finish uploading.';return}
+    const media=att.filter(a=>a.id).map(a=>({src:'/_blob/'+a.id,kind:'image',name:a.name||'pasted image'}));
+    const t=ta.value.trim();if(!t&&!media.length)return;
+    if(!db){msg.textContent='The chat works when this page is open on claude.ai while signed in.';return}
+    ask.disabled=true;msg.textContent='';
+    // show it right away, then save, then hand it to Claude
+    const r=replyTo[id];delete replyTo[id];renderReplyBar(id);
+    const local={scene:id,text:t,by:myId||'me',at:Date.now(),toClaude:true,_pending:true,...(media.length?{media}:{}),...(r?{replyTo:r.id,replySnip:r.snip}:{})};
+    pending.push(local);ta.value='';attach[id]=[];renderAttach(id);renderWaiting();try{localStorage.removeItem(draftKey)}catch(e){}saveDraftSoon(id,'',true);renderNotes(id);
+    try{
+      await db.collection('notes').add({scene:id,text:t,by:myId||'me',at:local.at,toClaude:true,...(media.length?{media}:{}),...(r?{replyTo:r.id,replySnip:r.snip}:{})});
+    }catch(e){local._failed='Not saved ('+(e&&e.code||'error')+'). Copy your text and send again.';ta.value=t;attach[id]=att;renderAttach(id);try{localStorage.setItem(draftKey,t)}catch(e2){}saveDraftSoon(id,t,true);renderNotes(id);ask.disabled=false;return}
+    try{
+      if(!comments)throw {code:'no_comments'};
+      const can=await comments.canSendToClaude().catch(()=>'off');
+      if(can!=='available')throw {code:can};
+      const anchor=await comments.anchorFor(document.getElementById('card-'+id));
+      await comments.sendToClaude({anchor,text:`${prefix} ${r?`(replying to your note: "${r.snip}") `:''}${t}${media.length?`${t?' ':''}[${media.length} image${media.length>1?'s':''} attached in the chat: ${media.map(m=>m.src.slice(7)).join(', ')}]`:''}`});
+    }catch(e){local._warn=e&&e.code==='no_session'?'Saved. No Claude session is listening right now; Claude will read it next time.':e&&e.code==='consent_required'?'Saved, but not delivered to Claude: allow commenting from this page when asked, then send a short follow-up.':'Saved, but not delivered to Claude ('+(e&&e.code||'error')+').';renderNotes(id)}
+    ask.disabled=false};
+  const ask=el('button',{type:'button',class:'ask',onclick:send},'Send');
+  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}});
+  ta.addEventListener('paste',e=>{const fs=[...(e.clipboardData?.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addImages(id,fs,msg)}});
+  ta.addEventListener('dragover',e=>{if([...(e.dataTransfer?.items||[])].some(i=>i.kind==='file')){e.preventDefault();ta.classList.add('drop')}});
+  ta.addEventListener('dragleave',()=>ta.classList.remove('drop'));
+  ta.addEventListener('drop',e=>{ta.classList.remove('drop');const fs=[...(e.dataTransfer?.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addImages(id,fs,msg)}});
+  const fileIn=el('input',{type:'file',accept:'image/*',multiple:'',hidden:'',onchange:e=>{addImages(id,[...e.target.files],msg);e.target.value=''}});
+  const attachBtn=el('button',{type:'button',class:'attachbtn',title:'Attach images (or paste / drop them into the box)','aria-label':'Attach images',hidden:'',onclick:()=>fileIn.click()},'＋');
+  const attachRow=el('div',{class:'attachrow',id:'attach-'+id,hidden:''});
+  const pill=el('button',{type:'button',class:'newpill',id:'newpill-'+id,hidden:'',onclick:()=>{const sc=document.getElementById('upper-'+id);sc.scrollTo({top:sc.scrollHeight,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}});
+  return [pill,el('div',{class:'replybar',id:'replybar-'+id,hidden:''}),attachRow,el('div',{class:'compose',id:'compose-'+id},attachBtn,fileIn,ta,ask),msg];
+}
 function card(s){
   const clip=s.clip||{tag:'—',what:'',when:'',ref:''};const lyr=s.lyrics||[];
   const sel=el('select',{class:'pill st-'+status[s.id],id:'status-'+s.id,'aria-label':'Scene status',onchange:async e=>{const v=e.target.value;status[s.id]=v;e.target.className='pill st-'+v;renderTimeline();if(db){try{await db.doc('status/'+s.id).set({status:v,at:Date.now(),by:myId||null})}catch(err){}}}});
@@ -410,44 +472,7 @@ function card(s){
   const assets=el('div',{class:'assets'},...tiles);
   const nOf=k=>sAssets.filter(a=>k==='all'||a.kind===k).length;
   const afilter=el('div',{class:'afilter',role:'group','aria-label':'Show'},...[['all','All'],['image','Images'],['video','Video'],['audio','Audio'],['text','Prompts']].filter(([k])=>k==='all'||nOf(k)).map(([k,l],i)=>el('button',{type:'button','aria-pressed':i?'false':'true',onclick:e=>{e.currentTarget.parentNode.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===e.currentTarget)));tiles.forEach(t=>t.hidden=k!=='all'&&t.dataset.kind!==k)}},`${l} ${nOf(k)}`)));
-  const ta=el('textarea',{id:'note-'+s.id,placeholder:'Message Claude about this scene','aria-label':'Message for this scene',maxlength:'3800'});
-  // unsent drafts stay in this browser per card (a convenience only: the page works without storage)
-  const draftKey='board-draft-'+s.id;
-  try{const d=localStorage.getItem(draftKey);if(d)ta.value=d}catch(e){}
-  ta.addEventListener('input',()=>{try{ta.value?localStorage.setItem(draftKey,ta.value):localStorage.removeItem(draftKey)}catch(e){}saveDraftSoon(s.id,ta.value)});
-  const msg=el('div',{class:'hint',id:'askmsg-'+s.id});
-  const send=async()=>{
-    const att=(attach[s.id]||[]);if(att.some(a=>a.busy)){msg.textContent='Wait for the image to finish uploading.';return}
-    const media=att.filter(a=>a.id).map(a=>({src:'/_blob/'+a.id,kind:'image',name:a.name||'pasted image'}));
-    const t=ta.value.trim();if(!t&&!media.length)return;
-    if(!db){msg.textContent='The chat works when this page is open on claude.ai while signed in.';return}
-    ask.disabled=true;msg.textContent='';
-    // show it right away, then save, then hand it to Claude
-    const r=replyTo[s.id];delete replyTo[s.id];renderReplyBar(s.id);
-    const local={scene:s.id,text:t,by:myId||'me',at:Date.now(),toClaude:true,_pending:true,...(media.length?{media}:{}),...(r?{replyTo:r.id,replySnip:r.snip}:{})};
-    pending.push(local);ta.value='';attach[s.id]=[];renderAttach(s.id);renderWaiting();try{localStorage.removeItem(draftKey)}catch(e){}saveDraftSoon(s.id,'',true);renderNotes(s.id);
-    try{
-      await db.collection('notes').add({scene:s.id,text:t,by:myId||'me',at:local.at,toClaude:true,...(media.length?{media}:{}),...(r?{replyTo:r.id,replySnip:r.snip}:{})});
-    }catch(e){local._failed='Not saved ('+(e&&e.code||'error')+'). Copy your text and send again.';ta.value=t;attach[s.id]=att;renderAttach(s.id);try{localStorage.setItem(draftKey,t)}catch(e2){}saveDraftSoon(s.id,t,true);renderNotes(s.id);ask.disabled=false;return}
-    try{
-      if(!comments)throw {code:'no_comments'};
-      const can=await comments.canSendToClaude().catch(()=>'off');
-      if(can!=='available')throw {code:can};
-      const anchor=await comments.anchorFor(document.getElementById('card-'+s.id));
-      await comments.sendToClaude({anchor,text:`[Scene ${s.n} · ${s.title}] ${r?`(replying to your note: "${r.snip}") `:''}${t}${media.length?`${t?' ':''}[${media.length} image${media.length>1?'s':''} attached in the scene chat: ${media.map(m=>m.src.slice(7)).join(', ')}]`:''}`});
-    }catch(e){local._warn=e&&e.code==='no_session'?'Saved. No Claude session is listening right now; Claude will read it next time.':e&&e.code==='consent_required'?'Saved, but not delivered to Claude: allow commenting from this page when asked, then send a short follow-up.':'Saved, but not delivered to Claude ('+(e&&e.code||'error')+').';renderNotes(s.id)}
-    ask.disabled=false};
-  const ask=el('button',{type:'button',class:'ask',onclick:send},'Send');
-  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();send()}});
-  ta.addEventListener('paste',e=>{const fs=[...(e.clipboardData?.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addImages(s.id,fs,msg)}});
-  ta.addEventListener('dragover',e=>{if([...(e.dataTransfer?.items||[])].some(i=>i.kind==='file')){e.preventDefault();ta.classList.add('drop')}});
-  ta.addEventListener('dragleave',()=>ta.classList.remove('drop'));
-  ta.addEventListener('drop',e=>{ta.classList.remove('drop');const fs=[...(e.dataTransfer?.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addImages(s.id,fs,msg)}});
-  const fileIn=el('input',{type:'file',accept:'image/*',multiple:'',hidden:'',onchange:e=>{addImages(s.id,[...e.target.files],msg);e.target.value=''}});
-  const attachBtn=el('button',{type:'button',class:'attachbtn',title:'Attach images (or paste / drop them into the box)','aria-label':'Attach images',hidden:'',onclick:()=>fileIn.click()},'＋');
-  const attachRow=el('div',{class:'attachrow',id:'attach-'+s.id,hidden:''});
   const notesBox=el('div',{class:'notes',id:'notes-'+s.id,role:'log','aria-live':'polite'});
-  const pill=el('button',{type:'button',class:'newpill',id:'newpill-'+s.id,hidden:'',onclick:()=>{const sc=document.getElementById('upper-'+s.id);sc.scrollTo({top:sc.scrollHeight,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}});
   return el('article',{class:'card',id:'card-'+s.id},
     el('button',{type:'button',class:'working',id:'work-'+s.id,hidden:'',onclick:()=>goToChat(s.id),title:'Claude is working on this scene: jump to the chat'},el('b',{},el('i',{class:'spin','aria-hidden':'true'}),'Working'),el('span',{})),
     el('button',{type:'button',class:'waiting',id:'wait-'+s.id,hidden:'',onclick:()=>goToChat(s.id),title:'Claude is waiting on your answer: jump to the chat'},el('b',{},'● Waiting on you'),el('span',{})),
@@ -463,7 +488,7 @@ function card(s){
       el('section',{'aria-label':`Chat about scene ${s.n}`},el('div',{class:'label'},'Chat with Claude'),notesBox)
     )),
     el('div',{class:'assetsview',id:'assetsview-'+s.id,hidden:''},el('div',{class:'label'},`Assets · ${sAssets.length} · newest first`),afilter,assets),
-    el('div',{class:'dock'},pill,el('div',{class:'replybar',id:'replybar-'+s.id,hidden:''}),attachRow,el('div',{class:'compose',id:'compose-'+s.id},attachBtn,fileIn,ta,ask),msg,
+    el('div',{class:'dock'},...composer(s.id,`[Scene ${s.n} · ${s.title}]`,'Message Claude about this scene','Message for this scene'),
       el('div',{class:'tabs',role:'tablist','aria-label':'Scene view'},
         el('button',{type:'button',role:'tab','aria-selected':'true',id:'tabchat-'+s.id,onclick:()=>setTab(s.id,'chat')},'Scene & chat'),
         el('button',{type:'button',role:'tab','aria-selected':'false',id:'tabassets-'+s.id,onclick:()=>setTab(s.id,'assets')},`Assets · ${sAssets.length}`))));
@@ -472,7 +497,7 @@ const rail=document.getElementById('rail');
 // cards fill the window below the header, so each card's input sits at the bottom of the screen
 const fitCards=()=>document.documentElement.style.setProperty('--railtop',Math.max(0,rail.getBoundingClientRect().top+window.scrollY)+'px');addEventListener('resize',fitCards);
 const placeholder=el('div',{class:'hint',id:'boardhint',style:'padding:24px'},'Loading the board…');
-rail.append(inboxCard(),placeholder);renderHeader();renderTimeline();renderWaiting();fitCards();
+rail.append(globalCard(),placeholder);{let t=null;try{t=localStorage.getItem('board-tab-global')}catch(e){}if(t==='chat')setGlobalTab('chat')}renderHeader();renderTimeline();renderWaiting();fitCards();
 // a scene card is rebuilt only when its own row changes; the draft, the tab and the chat's scroll position survive the swap
 const sceneKey={};
 function applyScenes(list){
@@ -480,7 +505,7 @@ function applyScenes(list){
   for(const s of SCENES)status[s.id]=statusOverride[s.id]||s.status||'placeholder';
   const live=new Set(SCENES.map(s=>s.id));
   rail.querySelectorAll('article.card:not(.inbox)').forEach(c=>{if(!live.has(c.id.slice(5)))c.remove()});
-  let prev=document.getElementById('card-inbox');
+  let prev=document.getElementById('card-global');
   for(const s of SCENES){
     const k=JSON.stringify(s)+status[s.id];const old=document.getElementById('card-'+s.id);
     if(old&&sceneKey[s.id]===k){prev=old;continue}
@@ -514,8 +539,8 @@ function applyScenes(list){
   let draftsLoaded=false;
   db.collection('scenes').onSnapshot(snap=>{scenesLoaded=true;applyScenes(snap.docs.map(d=>{const x=d.data();return x?Object.assign({id:d.id},x):null}).filter(Boolean));if(!draftsLoaded&&SCENES.length){draftsLoaded=true;loadDrafts()}},e=>{placeholder.textContent='Could not load the scenes ('+((e&&e.code)||'error')+').'});
   db.collection('status').onSnapshot(snap=>{for(const d of snap.docs){const v=d.data()?.status;if(!v)continue;statusOverride[d.id]=v;if(status[d.id]!==undefined){status[d.id]=v;const sel=document.getElementById('status-'+d.id);if(sel){sel.value=v;sel.className='pill st-'+v}}}renderTimeline()},()=>{});
-  db.collection('activity').onSnapshot(snap=>{activity={};for(const d of snap.docs){activity[d.id]=d.data()||{}}SCENES.forEach(s=>renderNotes(s.id));renderWaiting();renderRefresh()},()=>{});
-  db.collection('notes').onSnapshot(snap=>{notes=snap.docs.map(d=>{const x=d.data();return x?Object.assign({_id:d.id},x):null}).filter(Boolean);notesLoaded=true;SCENES.forEach(s=>renderNotes(s.id));renderWaiting()},()=>{});
+  db.collection('activity').onSnapshot(snap=>{activity={};for(const d of snap.docs){activity[d.id]=d.data()||{}}renderNotes('global');SCENES.forEach(s=>renderNotes(s.id));renderWaiting();renderRefresh()},()=>{});
+  db.collection('notes').onSnapshot(snap=>{notes=snap.docs.map(d=>{const x=d.data();return x?Object.assign({_id:d.id},x):null}).filter(Boolean);notesLoaded=true;renderNotes('global');SCENES.forEach(s=>renderNotes(s.id));renderWaiting()},()=>{});
 })();
 </script>
 

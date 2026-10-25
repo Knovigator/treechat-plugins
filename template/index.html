@@ -75,6 +75,7 @@ dialog.cinema.idle .bar{opacity:0}
 .inbox .item:focus-visible{outline:2px solid var(--uv);outline-offset:2px}
 .inbox .item .who{font:600 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .inbox .item .q{font-size:13px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.notemedia .nm-audio{grid-column:1/-1}.notemedia .nm-audio audio{width:100%}
 .newpill:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
 .card video.main{display:block;width:100%;aspect-ratio:16/9;background:#000}
 .clipwrap{position:relative;flex:0 0 auto;border-bottom:1px solid var(--line)}
@@ -267,10 +268,11 @@ document.getElementById('vclose').onclick=()=>{document.getElementById('viewer')
 document.getElementById('viewer').addEventListener('close',()=>document.getElementById('vmedia').replaceChildren());
 
 function noteMedia(m){if(!Array.isArray(m)||!m.length)return null;
-  return el('div',{class:'notemedia'},...m.filter(x=>x&&x.src).map(x=>{const k=x.kind||(/\.(mp4|webm)$/i.test(x.src)?'video':'image');
+  return el('div',{class:'notemedia'},...m.filter(x=>x&&x.src).map(x=>{const k=x.kind||(/\.(mp4|webm)$/i.test(x.src)?'video':/\.(mp3|wav|m4a|ogg)$/i.test(x.src)?'audio':'image');
     const cap=x.name?el('div',{class:'cap'},x.name):null;
     const open=()=>openViewer({src:x.src,kind:k,name:x.name||''});
     if(k==='video')return el('figure',{},el('video',{src:x.src,controls:'',muted:'',playsinline:'',preload:'metadata'}),el('button',{type:'button',class:'nm-open',onclick:open,'aria-label':'Open larger'},'⤢ open'),cap);
+    if(k==='audio')return el('figure',{class:'nm-audio'},el('audio',{src:x.src,controls:'',preload:'metadata'}),cap);
     return el('figure',{},el('button',{type:'button',class:'nm-img',onclick:open,'aria-label':'Open '+(x.name||'image')},el('img',{src:x.src,alt:x.name||'',loading:'lazy'})),cap)}))}
 function renderAttach(id){const row=document.getElementById('attach-'+id);if(!row)return;const list=attach[id]||[];row.hidden=!list.length;row.replaceChildren(...list.map((a,i)=>el('figure',{class:'att'+(a.busy?' busy':'')+(a.err?' err':'')},el('img',{src:a.preview,alt:a.name||'pasted image'}),a.busy?el('span',{class:'attst'},'Uploading…'):a.err?el('span',{class:'attst'},a.err):null,el('button',{type:'button',class:'attx','aria-label':'Remove image',onclick:()=>{list.splice(i,1);renderAttach(id)}},'×'))))}
 async function addImages(id,files,msg){

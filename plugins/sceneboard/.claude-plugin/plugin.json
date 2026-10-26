@@ -15,6 +15,7 @@
     "remotion"
   ],
   "dependencies": [
-    "treechat-ai@treechat"
-  ]
+    "treechat-ai"
+  ],
+  "homepage": "https://github.com/Knovigator/treechat-plugins/tree/main/plugins/sceneboard"
 }

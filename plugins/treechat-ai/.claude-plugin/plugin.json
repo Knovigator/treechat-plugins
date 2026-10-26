@@ -1,0 +1,20 @@
+{
+  "name": "treechat-ai",
+  "version": "0.1.0",
+  "description": "Image, video, lip-sync, music and 4K-upscale models from Treechat AI, billed to your Treechat account within the spending caps you set.",
+  "author": {
+    "name": "Treechat"
+  },
+  "homepage": "https://github.com/Knovigator/treechat-plugins/tree/main/plugins/treechat-ai",
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "image",
+    "video",
+    "lipsync",
+    "music",
+    "upscale",
+    "generation",
+    "treechat"
+  ]
+}

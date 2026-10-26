@@ -1,0 +1,20 @@
+{
+  "name": "treechat",
+  "description": "Treechat's Claude Code plugins: Treechat AI models, and sceneboard, a scene review board for AI films.",
+  "owner": {
+    "name": "Treechat",
+    "url": "https://treechat.com"
+  },
+  "plugins": [
+    {
+      "name": "treechat-ai",
+      "source": "./plugins/treechat-ai",
+      "description": "Image, video, lip-sync, music, voice and 4K-upscale models on your Treechat account, within spending caps you set."
+    },
+    {
+      "name": "sceneboard",
+      "source": "./plugins/sceneboard",
+      "description": "A scene-by-scene review board for AI films: comment on a scene, an agent fixes it and publishes the new clip back to the card."
+    }
+  ]
+}

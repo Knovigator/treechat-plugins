@@ -10,5 +10,8 @@
       "description": "Scene review board + agent protocol for AI films"
     }
   ],
-  "description": "Scene review board + agent protocol for AI films on claude.ai Artifacts"
+  "description": "Scene review board + agent protocol for AI films on claude.ai Artifacts",
+  "allowCrossMarketplaceDependenciesOn": [
+    "treechat"
+  ]
 }

@@ -53,13 +53,7 @@ Every reply goes in the scene chat (step 4), even if you also answered in the te
 
 Use whatever generation tools this session has, in this order:
 
-1. **Treechat AI** (the `treechat` MCP server this plugin ships).
-   - It has image, video, lip-sync and upscaling models on one bill.
-   - First run: call `enable_generation`. The user signs in and sets their caps in the browser.
-   - `list_generation_actions` shows the models.
-   - For a run: `quote_generation` (show the quote), then after the user's yes `create_generation`. Use `generate_media` only when the user has said runs within their saved caps don't need asking.
-   - If a run returns `approval_required`, give the user the approval link. Only they can approve it.
-   - Poll `get_generation` for the result.
+1. **Treechat AI**, from the `treechat-ai` plugin, which this plugin depends on. Follow its `treechat-ai` skill for sign-in, quotes, approval links and polling.
 2. **Another MCP server the user connected** (fal, Replicate, a local ComfyUI…): use its tools the same way, with a quote or price check first.
 3. **Their own command line:** `sb gen --provider <name> --kind <kind> --prompt … --out … --approved`, configured in `sceneboard.config.json` (see `sceneboard.config.example.json`).
    - Their API keys stay in their environment.

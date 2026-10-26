@@ -14,6 +14,7 @@ All content lives in the artifact's database, so an agent changes one row and ev
 ## Install (Claude Code plugin)
 
 ```
+/plugin marketplace add Knovigator/treecli      # the treechat marketplace (treechat-ai models)
 /plugin marketplace add <owner>/sceneboard
 /plugin install sceneboard@sceneboard
 ```
@@ -49,7 +50,7 @@ node bin/sceneboard.mjs note --scene s03 --text "r12 is up. Keep it?" --ask "Kee
 
 ## Models: Treechat AI or your own
 
-The plugin connects Claude Code to **Treechat AI** (`https://api.treechat.com/mcp`). Sign in once, set a per-run and a daily spending cap, and your agents can quote and run image, video, lip-sync and 4K-upscale models on one bill. A run over your cap waits for your approval in the browser.
+Sceneboard depends on the **treechat-ai** plugin ([Knovigator/treecli](https://github.com/Knovigator/treecli)), which connects Claude Code to Treechat AI (`https://api.treechat.com/mcp`). Sign in once, set a per-run and a daily spending cap, and your agents can quote and run image, video, lip-sync and 4K-upscale models on one bill. A run over your cap waits for your approval in the browser.
 
 Prefer your own? Connect any other MCP server (fal, Replicate, a local ComfyUI), or point `sceneboard gen` at your own command in `sceneboard.config.json` (see `sceneboard.config.example.json`). Commands run without a shell, and your keys stay in your environment, never on the board.
 

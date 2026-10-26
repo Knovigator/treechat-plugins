@@ -1,0 +1,10 @@
+{
+  "name": "sceneboard",
+  "version": "0.1.0",
+  "description": "Scene review board + agent protocol for AI films, on claude.ai Artifacts",
+  "type": "module",
+  "bin": { "sceneboard": "bin/sceneboard.mjs" },
+  "scripts": { "test": "node --test", "preview": "node dev/preview.mjs" },
+  "license": "MIT",
+  "engines": { "node": ">=20" }
+}

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildNote, buildClip, buildActivity, buildFull, parseMedia, validateScenes, extractStatic, whenUTC, UsageError } from '../bin/sceneboard.mjs';
+import { buildNote, buildClip, buildActivity, buildFull, parseMedia, validateScenes, extractStatic, whenUTC, UsageError } from '../bin/scenes.mjs';
 
 const now = 1792460035051;
 
@@ -55,7 +55,7 @@ test('extract pulls baked scenes out of a v0 board', () => {
 
 test('whenUTC', () => assert.equal(whenUTC(Date.UTC(2026, 9, 16, 3, 57)), 'Oct 16 03:57'));
 
-import { buildSpend, buildCommand } from '../bin/sceneboard.mjs';
+import { buildSpend, buildCommand } from '../bin/scenes.mjs';
 
 test('spend rows are whole cents with a provider and action', () => {
   assert.deepEqual(buildSpend({ scene: 's03', provider: 'treechat', action: 'seedance2.5hf', cents: '276', now }),

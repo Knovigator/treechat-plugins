@@ -1,5 +1,5 @@
 ---
-name: sceneboard
+name: scenes
 description: Run a film's scene review board on claude.ai Artifacts — set one up, act on the director's scene comments, reply in the scene chat, mark work in progress, and publish new clips and full cuts to the board. Use whenever a message starts with "[Scene N · Title]", "[Global]" or "[Full film]", or the user asks to make, seed, update or publish to a scene board.
 ---
 
@@ -18,7 +18,7 @@ the template itself or to add files under `files`.
 | `activity/<id>` | `{state:typing\|running\|idle,label,at}`: the purple "working" dot (`<id>` may be `full`) |
 | `spend/*` | `{scene,provider,action,cents,run?,at}`: one row per paid run; editors see the total in the header |
 
-The CLI is `node ${CLAUDE_PLUGIN_ROOT}/bin/sceneboard.mjs`, called `sb` below.
+The CLI is `node ${CLAUDE_PLUGIN_ROOT}/bin/scenes.mjs`, called `sb` below.
 - It builds every row you write, with the board's rules enforced: real timestamps, questions carry `ask`, and safe media paths.
 - It writes a JSON file and prints the `ArtifactData` call to make.
 - Pass that file as `file_path`. Never hand-type a row, and never invent an `at` value.
@@ -55,7 +55,7 @@ Use whatever generation tools this session has, in this order:
 
 1. **Treechat AI**, from the `treechat-ai` plugin, which this plugin depends on. Follow its `treechat-ai` skill for sign-in, quotes, approval links and polling.
 2. **Another MCP server the user connected** (fal, Replicate, a local ComfyUI…): use its tools the same way, with a quote or price check first.
-3. **Their own command line:** `sb gen --provider <name> --kind <kind> --prompt … --out … --approved`, configured in `sceneboard.config.json` (see `sceneboard.config.example.json`).
+3. **Their own command line:** `sb gen --provider <name> --kind <kind> --prompt … --out … --approved`, configured in `scenes.config.json` (see `scenes.config.example.json`).
    - Their API keys stay in their environment.
    - Never put a key in the board's db, a note or the page: everyone with the link can read those.
 
@@ -74,7 +74,7 @@ Every paid run, whichever provider:
 
 ## Setting up a board
 
-- **New:** run `/sceneboard:new`. It copies `template/index.html`, publishes it with `capabilities: {db:{}, user:{scopes:["profile"]}, comments:{}, assets:{}}`, then seeds rows with `sb seed scenes.json --meta meta.json --out <dir>` and the printed `ArtifactData batch` calls.
+- **New:** run `/scenes:new`. It copies `template/index.html`, publishes it with `capabilities: {db:{}, user:{scopes:["profile"]}, comments:{}, assets:{}}`, then seeds rows with `sb seed scenes.json --meta meta.json --out <dir>` and the printed `ArtifactData batch` calls.
 - **Migrating an old board with `const SCENES = [...]` baked in:**
   - Run `sb extract old.html --out <dir>` and write the batches.
   - Only after the rows exist, republish the page from the template to the same `url`.

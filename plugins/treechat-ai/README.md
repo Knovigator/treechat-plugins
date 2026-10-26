@@ -23,4 +23,4 @@ Ask for what you want ("animate this still for 5 seconds", "lip-sync this vocal 
 
 Every run is quoted first, and Claude waits for your yes. A run over your caps waits for your approval in the browser; Claude can't approve it for you.
 
-Making a film? [sceneboard](../sceneboard) adds a scene-by-scene review board on top of these models.
+Making a film? [scenes](../scenes) adds a scene-by-scene review board on top of these models.

@@ -1,5 +1,5 @@
 {
-  "name": "sceneboard",
+  "name": "scenes",
   "version": "0.1.0",
   "description": "A scene-by-scene review board for AI films on claude.ai Artifacts: the director comments on a scene, an agent fixes it and publishes the new clip back to the card.",
   "author": {
@@ -17,5 +17,5 @@
   "dependencies": [
     "treechat-ai"
   ],
-  "homepage": "https://github.com/Knovigator/treechat-plugins/tree/main/plugins/sceneboard"
+  "homepage": "https://github.com/Knovigator/treechat-plugins/tree/main/plugins/scenes"
 }

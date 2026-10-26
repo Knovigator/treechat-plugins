@@ -66,4 +66,4 @@ createServer((req, res) => {
   if (!f.startsWith(dir + '/') || !existsSync(f) || !statSync(f).isFile()) { res.statusCode = 404; return res.end('not found'); }
   res.setHeader('content-type', TYPES[extname(f).toLowerCase()] || 'application/octet-stream');
   res.end(readFileSync(f));
-}).listen(port, '127.0.0.1', () => console.log(`sceneboard preview: http://127.0.0.1:${port}/  (rows from ${dir})`));
+}).listen(port, '127.0.0.1', () => console.log(`scenes preview: http://127.0.0.1:${port}/  (rows from ${dir})`));

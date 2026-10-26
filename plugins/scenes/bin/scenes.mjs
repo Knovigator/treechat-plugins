@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sceneboard: builds the db rows a scene board reads, with the board's rules checked in code.
+// scenes: builds the db rows a scene board reads, with the board's rules checked in code.
 // It never talks to claude.ai itself. Each command writes a JSON file and prints the ArtifactData call
 // that applies it, so the agent's only job is to make that call (pinned with if_version).
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -119,11 +119,11 @@ export function buildSpend({ scene, provider, action, cents, run, note, now }) {
   return { scene: sc, provider: String(provider), action: String(action), cents: c, ...(run ? { run: String(run) } : {}), ...(note ? { note: String(note) } : {}), at: now };
 }
 
-// Bring-your-own generators: sceneboard.config.json maps a provider + kind to a command, one argv entry per
+// Bring-your-own generators: scenes.config.json maps a provider + kind to a command, one argv entry per
 // array item. {prompt} {ref} {audio} {out} are filled in per argument and never pass through a shell, so a
 // prompt can't run anything. An argument that is only a missing placeholder is dropped with its flag.
 export function loadConfig(explicit) {
-  const paths = explicit ? [explicit] : [resolve('sceneboard.config.json'), join(homedir(), '.config', 'sceneboard', 'config.json')];
+  const paths = explicit ? [explicit] : [resolve('scenes.config.json'), join(homedir(), '.config', 'scenes', 'config.json')];
   for (const p of paths) if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
   if (explicit) fail(`no config at ${explicit}`);
   return {};
@@ -193,7 +193,7 @@ function seedCalls(scenes, meta, out) {
   return batches;
 }
 
-const HELP = `sceneboard <command> [options]   (every command writes --out <file|dir> and prints the ArtifactData call to make)
+const HELP = `scenes <command> [options]   (every command writes --out <file|dir> and prints the ArtifactData call to make)
 
   now                                       print the current epoch ms (never invent an \`at\`)
   seed <scenes.json> [--meta m.json] --out <dir>
@@ -210,7 +210,7 @@ const HELP = `sceneboard <command> [options]   (every command writes --out <file
   spend --scene <id|board> --provider <p> --action <model> --cents <n> [--run <id>] [--note <t>] --out <file>
                                             record one paid run (the header shows the running total to editors)
   gen --provider <name> --kind <kind> --prompt <t> [--ref <file>] [--audio <file>] --out <file> --approved
-      [--config <file>]                     run your own generator from sceneboard.config.json (no shell);
+      [--config <file>]                     run your own generator from scenes.config.json (no shell);
                                             --approved means the user said yes to this run and its cost
 `;
 
@@ -256,10 +256,10 @@ export function run(argv, now = Date.now()) {
       if (!opt.approved) fail('show the user the prompt and the expected cost, get a yes, then pass --approved');
       const cfg = loadConfig(typeof opt.config === 'string' ? opt.config : undefined);
       const tpl = cfg.providers?.[opt.provider]?.[opt.kind];
-      if (!tpl) fail(`no providers.${opt.provider}.${opt.kind} command in sceneboard.config.json`);
+      if (!tpl) fail(`no providers.${opt.provider}.${opt.kind} command in scenes.config.json`);
       const argv = buildCommand(tpl, { prompt: opt.prompt, ref: opt.ref, audio: opt.audio, out: needOut() });
       execFileSync(argv[0], argv.slice(1), { stdio: ['ignore', 'inherit', 'inherit'] });
-      return { print: JSON.stringify({ ran: argv[0], out: resolve(out) }), note: 'Record the cost with `sceneboard spend`, then publish the file to the card.' };
+      return { print: JSON.stringify({ ran: argv[0], out: resolve(out) }), note: 'Record the cost with `scenes spend`, then publish the file to the card.' };
     }
     case 'full':
       return { print: JSON.stringify(call('update', 'board', 'meta', writeJSON(needOut(), buildFull({ src: opt.src, hls: opt.hls, tag: opt.tag, ref: opt.ref, now })), true), null, 2) };
@@ -275,7 +275,7 @@ if (isMain) {
     process.stdout.write(r.print + '\n');
     if (r.note) process.stderr.write(r.note + '\n');
   } catch (e) {
-    if (e instanceof UsageError) { process.stderr.write(`sceneboard: ${e.message}\n`); process.exit(2); }
+    if (e instanceof UsageError) { process.stderr.write(`scenes: ${e.message}\n`); process.exit(2); }
     throw e;
   }
 }

@@ -2,7 +2,7 @@
 description: Move a board whose scenes are baked into the page onto db rows
 argument-hint: <board url> <local copy of its index.html>
 ---
-Migrate the board, following the sceneboard skill's "Setting up a board" section: $ARGUMENTS
+Migrate the board, following the scenes skill's "Setting up a board" section: $ARGUMENTS
 
 1. Read the artifact first. Then run `sb extract <html> --out <dir>` and check the scene count against the page.
 2. Write the batches, which only create rows. Confirm them with `ArtifactData list scenes`.

@@ -532,7 +532,7 @@ function applyScenes(list){
     renderNotes(s.id);renderReplyBar(s.id);renderAttach(s.id);
   }
   placeholder.hidden=!!SCENES.length;
-  if(!SCENES.length)placeholder.textContent=scenesLoaded?'No scenes yet. Ask Claude to seed this board (sceneboard seed).':'Loading the board…';
+  if(!SCENES.length)placeholder.textContent=scenesLoaded?'No scenes yet. Ask Claude to seed this board (scenes seed).':'Loading the board…';
   renderHeader();renderWaiting();fitCards();
 }
 (async()=>{

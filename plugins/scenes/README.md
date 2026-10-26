@@ -1,4 +1,4 @@
-# sceneboard
+# scenes
 
 A scene-by-scene review board for AI films. The director comments on a scene, and a Claude Code agent fixes it and publishes the new clip back to that scene's card. We built it to make **CLIMB**, a 3-minute #slopcore music video. Its 16 scenes went through hundreds of review notes this way.
 
@@ -15,18 +15,18 @@ All content lives in the artifact's database, so an agent changes one row and ev
 
 ```
 /plugin marketplace add Knovigator/treechat-plugins
-/plugin install sceneboard@treechat
+/plugin install scenes@treechat
 ```
 
-This also installs the **treechat-ai** plugin it depends on. You get the `sceneboard` skill, which teaches the agent the review loop, and these commands:
+This also installs the **treechat-ai** plugin it depends on. You get the `scenes` skill, which teaches the agent the review loop, and these commands:
 
 | Command | Does |
 | --- | --- |
-| `/sceneboard:new <scenes.json>` | publish a new board and seed its scenes |
-| `/sceneboard:clip …` | put a new clip on a scene card |
-| `/sceneboard:note …` | post in a scene's chat (questions carry `ask`) |
-| `/sceneboard:full …` | publish a new full cut to the header |
-| `/sceneboard:migrate …` | move an old board, with scenes baked into the page, onto db rows |
+| `/scenes:new <scenes.json>` | publish a new board and seed its scenes |
+| `/scenes:clip …` | put a new clip on a scene card |
+| `/scenes:note …` | post in a scene's chat (questions carry `ask`) |
+| `/scenes:full …` | publish a new full cut to the header |
+| `/scenes:migrate …` | move an old board, with scenes baked into the page, onto db rows |
 
 ## The loop
 
@@ -36,7 +36,7 @@ director comments on scene 3 ─▶ agent: activity=running (purple dot)
 agent asks "take 1 or 2?"    ─▶ note with ask (yellow dot + inbox) ─▶ director answers in the chat
 ```
 
-The `sceneboard` CLI builds every row with the rules checked in code:
+The `scenes` CLI builds every row with the rules checked in code:
 
 - timestamps come from the clock, never typed by the agent;
 - a question without `--ask` is refused;
@@ -44,16 +44,16 @@ The `sceneboard` CLI builds every row with the rules checked in code:
 - a new clip keeps the one it replaced in the card's assets.
 
 ```
-node bin/sceneboard.mjs note --scene s03 --text "r12 is up. Keep it?" --ask "Keep r12?" --media a/s03-r12.mp4 --out note.json
+node bin/scenes.mjs note --scene s03 --text "r12 is up. Keep it?" --ask "Keep r12?" --media a/s03-r12.mp4 --out note.json
 ```
 
 ## Models: Treechat AI or your own
 
-Sceneboard depends on the **treechat-ai** plugin ([plugins/treechat-ai](../treechat-ai)), which connects Claude Code to Treechat AI (`https://api.treechat.com/mcp`). Sign in once, set a per-run and a daily spending cap, and your agents can quote and run image, video, lip-sync and 4K-upscale models on one bill. A run over your cap waits for your approval in the browser.
+Scenes depends on the **treechat-ai** plugin ([plugins/treechat-ai](../treechat-ai)), which connects Claude Code to Treechat AI (`https://api.treechat.com/mcp`). Sign in once, set a per-run and a daily spending cap, and your agents can quote and run image, video, lip-sync and 4K-upscale models on one bill. A run over your cap waits for your approval in the browser.
 
-Prefer your own? Connect any other MCP server (fal, Replicate, a local ComfyUI), or point `sceneboard gen` at your own command in `sceneboard.config.json` (see `sceneboard.config.example.json`). Commands run without a shell, and your keys stay in your environment, never on the board.
+Prefer your own? Connect any other MCP server (fal, Replicate, a local ComfyUI), or point `scenes gen` at your own command in `scenes.config.json` (see `scenes.config.example.json`). Commands run without a shell, and your keys stay in your environment, never on the board.
 
-Whichever you use, every paid run is quoted and approved first, then logged with `sceneboard spend`. People who can edit the board see the film's running cost in its header.
+Whichever you use, every paid run is quoted and approved first, then logged with `scenes spend`. People who can edit the board see the film's running cost in its header.
 
 ## Run it locally
 

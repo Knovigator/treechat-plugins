@@ -7,7 +7,9 @@ import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 
-const STATES = ['placeholder', 'animatic', 'footage', 'review', 'final'];
+const STATES = ['prompt', 'storyboard', 'animatic', 'footage', 'review', 'final'];
+// boards seeded before the Prompt stage say 'placeholder'
+const stage = (v) => (v === 'placeholder' ? 'prompt' : v);
 const ACTIVITY = ['typing', 'running', 'idle'];
 const KINDS = ['image', 'video', 'audio', 'text'];
 
@@ -96,6 +98,7 @@ export function buildClip({ current = {}, video, tag, what, ref, state, status, 
     added.push({ src: current.video, kind: 'video', name: `clip ${current.clip?.tag || 'previous'}`, at: now - 1 });
   if (added.length) update.assets = [...added, ...old.filter((a) => !added.some((b) => b.src === a.src))];
   if (state) update.state = String(state);
+  if (status) status = stage(status);
   if (status) { if (!STATES.includes(status)) fail(`--status must be one of ${STATES.join(', ')}`); update.status = status; }
   return update;
 }
@@ -154,6 +157,7 @@ export function validateScenes(scenes) {
     if (!s.title) fail(`scene ${id}: title is required`);
     const out = { ...s, n: s.n ?? i + 1, t0: Number(s.t0 ?? 0), t1: Number(s.t1 ?? 0) };
     if (!(out.t1 >= out.t0)) fail(`scene ${id}: t1 must be >= t0`);
+    if (out.status) out.status = stage(out.status);
     if (out.status && !STATES.includes(out.status)) fail(`scene ${id}: status must be one of ${STATES.join(', ')}`);
     delete out.id;
     if (Buffer.byteLength(JSON.stringify(out)) > 250 * 1024) fail(`scene ${id} is over 250 KiB; move old assets out of it`);

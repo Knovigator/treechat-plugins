@@ -6,7 +6,7 @@
    "clip": {"tag": "r1", "what": "animatic", "when": "Oct 19 12:00", "ref": "demo"},
    "assets": [{"src": "a/take2.mp4", "kind": "video", "name": "alt take"}]},
   {"id": "s02", "title": "The walk", "t0": 8, "t1": 20, "shots": "sh04–sh06",
-   "see": "A long walk through the farm.", "state": "Waiting on footage.", "status": "placeholder",
+   "see": "A long walk through the farm.", "state": "Waiting on footage.", "status": "prompt",
    "lyrics": []},
   {"id": "s03", "title": "Finale", "t0": 20, "t1": 31,
    "see": "Everyone climbs.", "status": "review", "lyrics": ["Climb."]}

@@ -92,11 +92,14 @@ dialog.cinema.idle .bar{opacity:0}
 .note{overflow-wrap:anywhere}
 .meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font:500 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .meta b{color:var(--fg);font-weight:500}
+.scenehead{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--card);min-width:0}
+.scenehead .sc{font:500 12px var(--mono);color:var(--muted);white-space:nowrap}
+.scenehead h2{flex:1;min-width:0;margin:0;font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 h2{font:800 26px/1 var(--display);text-transform:uppercase;margin:2px 0 0;letter-spacing:.01em}
 .pill{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;border-radius:999px;padding:3px 10px;border:1px solid currentColor;background:transparent;color:var(--muted);appearance:none;cursor:pointer}
 .pill:focus-visible{outline:2px solid var(--uv);outline-offset:2px}
-.st-placeholder{color:var(--muted)} .st-animatic{color:var(--warn)} .st-footage{color:var(--coin)} .st-review{color:var(--uv)} .st-final{color:var(--ok)}
-.bar.st-placeholder{background:var(--muted)} .bar.st-animatic{background:var(--warn)} .bar.st-footage{background:var(--coin)} .bar.st-review{background:var(--uv)} .bar.st-final{background:var(--ok)}
+.st-prompt{color:var(--muted)} .st-storyboard{color:var(--fg)} .st-animatic{color:var(--warn)} .st-footage{color:var(--coin)} .st-review{color:var(--uv)} .st-final{color:var(--ok)}
+.bar.st-prompt{background:var(--muted)} .bar.st-storyboard{background:var(--fg)} .bar.st-animatic{background:var(--warn)} .bar.st-footage{background:var(--coin)} .bar.st-review{background:var(--uv)} .bar.st-final{background:var(--ok)}
 .label{font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 .lyrics{font-style:italic;margin:0;padding-left:10px;border-left:2px solid var(--farm)}
 .lyrics p{margin:0}
@@ -193,8 +196,10 @@ dialog .cap button{font:600 12px var(--mono);background:#fff;color:#000;border:0
 let SCENES=[]; let FULL=null; let META={}; let scenesLoaded=false;
 //   spend/*     {scene,provider,action,cents,at}  paid runs; the header totals them for people who can edit
 let spendCents=0, spendRuns=0, canSeeSpend=false;
-const STATUSES=[['placeholder','Placeholder'],['animatic','Animatic'],['footage','Footage'],['review','In review'],['final','Final']];
+const STATUSES=[['prompt','Prompt'],['storyboard','Storyboard'],['animatic','Animatic'],['footage','Footage'],['review','In review'],['final','Final']];
 const status={}; const statusOverride={};
+// boards seeded before the Prompt stage say 'placeholder'
+const stageOf=v=>v==='placeholder'?'prompt':v;
 let notes=[]; let pending=[]; let activity={}; let notesLoaded=false; const chatState={}; let db=null, user=null, myId=null, comments=null, assets=null; const attach={};
 const fmt=t=>{const m=Math.floor(t/60),s=(t%60);return m+':'+s.toFixed(1).padStart(4,'0')};
 const el=(tag,props={},...kids)=>{const e=document.createElement(tag);for(const[k,v]of Object.entries(props)){if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v)}for(const c of kids)if(c!=null)e.append(c);return e};
@@ -480,9 +485,11 @@ function card(s){
     el('button',{type:'button',class:'working',id:'work-'+s.id,hidden:'',onclick:()=>goToChat(s.id),title:'Claude is working on this scene: jump to the chat'},el('b',{},el('i',{class:'spin','aria-hidden':'true'}),'Working'),el('span',{})),
     el('button',{type:'button',class:'waiting',id:'wait-'+s.id,hidden:'',onclick:()=>goToChat(s.id),title:'Claude is waiting on your answer: jump to the chat'},el('b',{},'● Waiting on you'),el('span',{})),
     s.video?el('div',{class:'clipwrap'},el('video',{class:'main',src:s.video,controls:'',preload:'metadata',playsinline:''}),el('div',{class:'clipbadge'},el('b',{},'CLIP '+clip.tag),`${clip.when||''} · ${clip.ref||''}`)):null,
+    // the scene's name and stage stay pinned under the clip while the notes and chat scroll
+    el('div',{class:'scenehead'},el('span',{class:'sc'},el('b',{},`SC ${String(s.n).padStart(2,'0')}`)),el('h2',{title:s.title},s.title),sel),
     el('div',{class:'upper',id:'upper-'+s.id,onscroll:()=>updatePill(s.id)},
     el('div',{class:'body'},
-      el('div',{},el('div',{class:'meta'},el('span',{},el('b',{},`SC ${String(s.n).padStart(2,'0')}`),` · ${fmt(s.t0||0)}–${fmt(s.t1||0)}${s.shots?' · '+s.shots:''}`),sel),el('h2',{},s.title)),
+      el('div',{class:'meta'},el('span',{},`${fmt(s.t0||0)}–${fmt(s.t1||0)}${s.shots?' · '+s.shots:''}`)),
       lyr.length?el('div',{},el('div',{class:'label'},META.lyricsLabel||'Lyrics'),el('div',{class:'lyrics'},...lyr.map(l=>el('p',{},l)))):s.lyrics?el('div',{},el('div',{class:'label'},META.lyricsLabel||'Lyrics'),el('div',{class:'hint'},'Instrumental')):null,
       s.video?el('div',{class:'clipline'},'Playing above: ',el('b',{},'clip '+clip.tag),` — ${clip.what||''} · rendered ${clip.when||''} · ${clip.ref||''}`):el('div',{class:'hint'},'No clip yet.'),
       s.picks&&s.picks.length?el('div',{class:'picks'},el('span',{class:'label'},'Compare'),...[{label:'Clip '+clip.tag,src:s.video},...s.picks].map((p,i)=>el('button',{type:'button','aria-pressed':i?'false':'true',onclick:e=>{const v=document.querySelector('#card-'+s.id+' video.main');v.src=p.src;v.play().catch(()=>{});e.currentTarget.parentNode.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===e.currentTarget)))}},p.label))):'',
@@ -505,7 +512,7 @@ rail.append(globalCard(),placeholder);{let t=null;try{t=localStorage.getItem('bo
 const sceneKey={};
 function applyScenes(list){
   SCENES=list.filter(s=>s&&s.id).sort((a,b)=>(a.n??1e9)-(b.n??1e9)||(a.t0||0)-(b.t0||0)||(a.id<b.id?-1:1)).map((s,i)=>s.n==null?{...s,n:i+1}:s);
-  for(const s of SCENES)status[s.id]=statusOverride[s.id]||s.status||'placeholder';
+  for(const s of SCENES)status[s.id]=stageOf(statusOverride[s.id]||s.status||'prompt');
   const live=new Set(SCENES.map(s=>s.id));
   rail.querySelectorAll('article.card:not(.inbox)').forEach(c=>{if(!live.has(c.id.slice(5)))c.remove()});
   let prev=document.getElementById('card-global');
@@ -541,7 +548,7 @@ function applyScenes(list){
   db.doc('board/meta').onSnapshot(snap=>{META=(snap.exists&&snap.data())||{};FULL=META.full||null;renderHeader();renderRefresh()},()=>{});
   let draftsLoaded=false;
   db.collection('scenes').onSnapshot(snap=>{scenesLoaded=true;applyScenes(snap.docs.map(d=>{const x=d.data();return x?Object.assign({id:d.id},x):null}).filter(Boolean));if(!draftsLoaded&&SCENES.length){draftsLoaded=true;loadDrafts()}},e=>{placeholder.textContent='Could not load the scenes ('+((e&&e.code)||'error')+').'});
-  db.collection('status').onSnapshot(snap=>{for(const d of snap.docs){const v=d.data()?.status;if(!v)continue;statusOverride[d.id]=v;if(status[d.id]!==undefined){status[d.id]=v;const sel=document.getElementById('status-'+d.id);if(sel){sel.value=v;sel.className='pill st-'+v}}}renderTimeline()},()=>{});
+  db.collection('status').onSnapshot(snap=>{for(const d of snap.docs){const v=stageOf(d.data()?.status);if(!v)continue;statusOverride[d.id]=v;if(status[d.id]!==undefined){status[d.id]=v;const sel=document.getElementById('status-'+d.id);if(sel){sel.value=v;sel.className='pill st-'+v}}}renderTimeline()},()=>{});
   db.collection('activity').onSnapshot(snap=>{activity={};for(const d of snap.docs){activity[d.id]=d.data()||{}}renderNotes('global');SCENES.forEach(s=>renderNotes(s.id));renderWaiting();renderRefresh()},()=>{});
   db.collection('notes').onSnapshot(snap=>{notes=snap.docs.map(d=>{const x=d.data();return x?Object.assign({_id:d.id},x):null}).filter(Boolean);notesLoaded=true;renderNotes('global');SCENES.forEach(s=>renderNotes(s.id));renderWaiting()},()=>{});
 })();

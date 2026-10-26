@@ -13,7 +13,7 @@ the template itself or to add files under `files`.
 | --- | --- |
 | `board/meta` | `{title, subtitle?, director?, lyricsLabel?, full:{src,hls?,tag,when,ref}}`: the header and the latest full cut |
 | `scenes/<id>` | `{n,title,t0,t1,shots?,see?,state?,lyrics?,status,video?,clip:{tag,what,when,ref},picks?,assets[]}` |
-| `status/<id>` | `{status}`: the director's status pick (placeholder · animatic · footage · review · final). It overrides `scenes/<id>.status`. |
+| `status/<id>` | `{status}`: the director's status pick (prompt · storyboard · animatic · footage · review · final; an old `placeholder` reads as prompt). It overrides `scenes/<id>.status`. |
 | `notes/*` | the scene chats, plus the board-wide chat on the Global card (`scene: "global"`): `{scene,by,text,at,ask?,media?,toClaude?,replyTo?}` |
 | `activity/<id>` | `{state:typing\|running\|idle,label,at}`: the purple "working" dot (`<id>` may be `full`) |
 | `spend/*` | `{scene,provider,action,cents,run?,at}`: one row per paid run; editors see the total in the header |
